@@ -1,66 +1,186 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
 
-export default function Home() {
+import { useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
+import FileUpload from '@/components/FileUpload/FileUpload';
+import PlayerControls from '@/components/PlayerControls/PlayerControls';
+import VideoOverlay from '@/components/VideoOverlay/VideoOverlay';
+import { usePlayer } from '@/hooks/usePlayer';
+import type { LoadingState } from '@/types/mano';
+import styles from './page.module.css';
+
+/** 动态加载 3D 场景（禁用 SSR） */
+const Scene3D = dynamic(
+  () => import('@/components/Scene3D/Scene3D'),
+  { ssr: false }
+);
+
+/**
+ * MANO Web Viewer 主页面
+ * 集成文件上传、2D/3D 视图、播放控制
+ */
+export default function HomePage() {
+  const [loadingState, setLoadingState] = useState<LoadingState>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [totalFrames, setTotalFrames] = useState(0);
+  const [seqName, setSeqName] = useState<string>('');
+
+  const player = usePlayer({ totalFrames, fps: 30 });
+
+  /** 是否处于文件选择阶段 */
+  const isUploadPhase = loadingState === 'idle' || loadingState === 'error';
+  const isLoading = loadingState === 'uploading' || loadingState === 'parsing';
+  const isReady = loadingState === 'ready';
+
+  /** 处理文件选择提交 */
+  const handleFilesSelected = useCallback(async (pklFile: File, mp4File: File) => {
+    console.log('[handleFilesSelected] 开始处理文件:', pklFile.name, mp4File.name);
+    setError(null);
+    setLoadingState('uploading');
+
+    try {
+      // 创建 MP4 播放 URL
+      const mp4Url = URL.createObjectURL(mp4File);
+      setVideoUrl(mp4Url);
+
+      // 上传 PKL 到后端解析
+      const formData = new FormData();
+      formData.append('pkl_file', pklFile);
+      formData.append('mp4_file', mp4File);
+
+      setLoadingState('parsing');
+
+      const response = await fetch('http://localhost:8000/api/parse-pkl', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ detail: '服务端错误' }));
+        throw new Error(errData.detail || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('[handleFilesSelected] 解析成功:', result.seq_name, '帧数:', result.total_frames);
+
+      setSeqName(result.seq_name || '');
+      setTotalFrames(result.total_frames || 0);
+      setLoadingState('ready');
+
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '未知错误';
+      console.log('[handleFilesSelected] 加载失败:', message);
+      setError(message);
+      setLoadingState('error');
+      // 清理视频 URL
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+        setVideoUrl(null);
+      }
+    }
+  }, [videoUrl]);
+
+  /** 重新选择文件 */
+  const handleReset = useCallback(() => {
+    if (videoUrl) {
+      URL.revokeObjectURL(videoUrl);
+    }
+    setVideoUrl(null);
+    setTotalFrames(0);
+    setSeqName('');
+    setError(null);
+    setLoadingState('idle');
+  }, [videoUrl]);
+
+  /** 头部信息 */
+  const headerInfoText = useMemo(() => {
+    if (isReady && seqName) return seqName;
+    return '';
+  }, [isReady, seqName]);
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
+    <div className={styles.container}>
+      {/* 顶部标题栏 */}
+      <header className={styles.header}>
+        <h1 className={styles.headerTitle}>MANO Web Viewer</h1>
+        <div className={styles.headerInfo}>
+          {headerInfoText}
+          {isReady && (
+            <button
+              className={styles.headerInfo}
+              onClick={handleReset}
+              style={{ marginLeft: 16, cursor: 'pointer', border: 'none', background: 'none', color: 'var(--color-text-muted)', textDecoration: 'underline' }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              重新选择
+            </button>
+          )}
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      </header>
+
+      {/* 错误提示 */}
+      {error && (
+        <div className={styles.errorBanner}>
+          <span className={styles.errorIcon}>⚠</span>
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* 主内容区域 */}
+      <div className={styles.main}>
+        {isUploadPhase || isLoading ? (
+          /* 上传/加载阶段 - 居中显示上传组件 */
+          <div className={styles.emptyState}>
+            <FileUpload
+              onFilesSelected={handleFilesSelected}
+              isLoading={isLoading}
             />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
+        ) : (
+          /* 就绪阶段 - 左右分栏 */
+          <>
+            {/* 左侧：2D 视频叠加视图 */}
+            <div className={styles.panelLeft}>
+              <span className={styles.panelLabel}>2D Overlay</span>
+              <div className={styles.viewContainer}>
+                {videoUrl && (
+                  <VideoOverlay
+                    videoUrl={videoUrl}
+                    currentFrame={player.currentFrame}
+                    fps={player.fps}
+                    isPlaying={player.isPlaying}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* 右侧：3D 视图 */}
+            <div className={styles.panelRight}>
+              <span className={styles.panelLabel}>3D View</span>
+              <div className={styles.viewContainer}>
+                <Scene3D currentFrame={player.currentFrame} />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 底部控制栏 */}
+      {isReady && (
+        <div className={styles.controlBar}>
+          <PlayerControls
+            currentFrame={player.currentFrame}
+            totalFrames={totalFrames}
+            isPlaying={player.isPlaying}
+            fps={player.fps}
+            onPlay={player.play}
+            onPause={player.pause}
+            onPrevFrame={player.prevFrame}
+            onNextFrame={player.nextFrame}
+            onSeek={player.seek}
+          />
         </div>
-      </main>
+      )}
     </div>
   );
 }

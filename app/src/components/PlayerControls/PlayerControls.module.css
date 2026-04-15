@@ -1,0 +1,131 @@
+/* 播放控制栏样式 */
+
+.controlBar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+}
+
+/* 按钮组 */
+.btnGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all var(--transition-fast);
+}
+
+.controlBtn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.controlBtn:active {
+  transform: scale(0.92);
+}
+
+.controlBtnPlay {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  color: var(--color-accent);
+}
+
+.controlBtnPlay:hover {
+  background: var(--color-accent-glow);
+}
+
+/* 进度条 */
+.progressContainer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  cursor: pointer;
+  padding: 0 var(--spacing-xs);
+}
+
+.progressTrack {
+  width: 100%;
+  height: 4px;
+  background: var(--color-bg-tertiary);
+  border-radius: 2px;
+  position: relative;
+  transition: height var(--transition-fast);
+}
+
+.progressContainer:hover .progressTrack {
+  height: 6px;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 2px;
+  position: relative;
+  transition: width 50ms linear;
+}
+
+.progressThumb {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent-glow);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.progressContainer:hover .progressThumb {
+  opacity: 1;
+}
+
+/* 帧信息 */
+.frameInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  min-width: 100px;
+  justify-content: flex-end;
+}
+
+.frameInfoCurrent {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.frameInfoSep {
+  color: var(--color-text-muted);
+}
+
+/* FPS 显示 */
+.fpsLabel {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+}
