@@ -11,20 +11,20 @@ Web 端 MANO PKL 手部模型可视化检查工具。
 ## 项目结构
 
 ```
-├── app/          # Next.js 前端 (TypeScript + React Three Fiber)
-├── server/       # FastAPI 后端 (Python)
-├── public/mock/  # 测试数据
-└── doc/          # PRD 文档
+├── frontend/      # Next.js 前端 (TypeScript + React Three Fiber)
+├── backend/       # FastAPI 后端 (Python)
+├── public/mock/   # 测试数据
+└── doc/           # PRD 文档
 ```
 
 ## 快速开始
 
 ### 前端
 
-需要进入 `app` 目录运行相关命令：
+需要进入 `frontend` 目录运行相关命令：
 
 ```bash
-cd app
+cd frontend
 npm install
 npm run dev
 ```
@@ -33,10 +33,10 @@ npm run dev
 
 ### 后端
 
-需要进入 `server` 目录运行相关命令：
+需要进入 `backend` 目录运行相关命令：
 
 ```bash
-cd server
+cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
