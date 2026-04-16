@@ -40,10 +40,12 @@ export default function VideoOverlay({
     }
   }, [fps]);
 
-  /** 帧变化时同步视频 */
+  /** 帧变化时同步视频。仅在暂停状态或手动拖动时进行 seek，播放时让视频自然流动以免卡顿 */
   useEffect(() => {
-    seekToFrame(currentFrame);
-  }, [currentFrame, seekToFrame]);
+    if (!isPlaying) {
+      seekToFrame(currentFrame);
+    }
+  }, [currentFrame, isPlaying, seekToFrame]);
 
   /** 播放/暂停控制 */
   useEffect(() => {

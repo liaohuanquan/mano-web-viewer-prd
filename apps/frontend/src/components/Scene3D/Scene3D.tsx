@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { useEffect, useMemo, useRef } from "react";
 import type { ManoTrack } from "@/types/mano";
 import styles from "./Scene3D.module.css";
+import React from "react";
 
 interface Scene3DProps {
   /** 当前帧索引 */
@@ -34,7 +35,7 @@ function Ground() {
   );
 }
 
-function ManoMesh({
+const ManoMesh = React.memo(({
   position,
   color,
   verts,
@@ -44,13 +45,12 @@ function ManoMesh({
   color: string;
   verts: number[][];
   faces: number[][];
-}) {
+}) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
   // 初始化固定拓扑和 BufferAttribute
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry();
-    // MANO 手部模型顶点固定为 778 个，开辟固定大小的 Float32Array[内存优化]
     const vertices = new Float32Array(778 * 3);
     geo.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
 
@@ -61,13 +61,12 @@ function ManoMesh({
     return geo;
   }, [faces]);
 
-  // 每一帧以极低开销就地更新顶点缓冲中的数据并通知 GPU 直接渲染，杜绝了数组内存申请释放带来的严重卡顿
+  // 更新顶点数据
   useEffect(() => {
     if (verts && verts.length === 778) {
       const positionAttribute = geometry.getAttribute("position") as THREE.BufferAttribute;
       const array = positionAttribute.array as Float32Array;
       for (let i = 0; i < 778; i++) {
-        // 直接在写入缓冲区时对 Y 和 Z 进行反转以对齐坐标系，省去前端 map 生成新数组的过程
         array[i * 3]     = verts[i][0];
         array[i * 3 + 1] = -verts[i][1];
         array[i * 3 + 2] = -verts[i][2];
@@ -87,7 +86,9 @@ function ManoMesh({
       />
     </mesh>
   );
-}
+});
+
+ManoMesh.displayName = "ManoMesh";
 
 /**
  * 3D 视图组件
