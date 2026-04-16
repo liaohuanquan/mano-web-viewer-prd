@@ -101,7 +101,7 @@ export default function Scene3D({
   currentFrame, 
   tracks, 
   faces,
-  interpolationEnabled = true 
+  interpolationEnabled = false 
 }: Scene3DProps) {
   // 计算基础偏移量。OpenCV 坐标系以相机光心为原点，手往往在Z轴远处（例如 Z=2.5m）
   // 导致放在 Threejs 中心时偏离网格中心。我们提取出第一帧的手部位置将它拉回原点附近

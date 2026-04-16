@@ -41,7 +41,7 @@ export default function VideoOverlay({
   onPause,
   tracks = [],
   faces = [],
-  interpolationEnabled = true,
+  interpolationEnabled = false,
 }: VideoOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);

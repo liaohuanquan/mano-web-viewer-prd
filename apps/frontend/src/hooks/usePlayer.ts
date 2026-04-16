@@ -33,7 +33,7 @@ export function usePlayer({
 }: UsePlayerOptions): UsePlayerReturn {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [interpolationEnabled, setInterpolationEnabled] = useState(true);
+  const [interpolationEnabled, setInterpolationEnabled] = useState(false);
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
 
