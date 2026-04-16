@@ -15,6 +15,8 @@ interface Scene3DProps {
   tracks: ManoTrack[];
   /** MANO 顶点面片连接数据 */
   faces?: number[][];
+  /** 是否开启插值 */
+  interpolationEnabled?: boolean;
 }
 
 /**
@@ -95,7 +97,12 @@ ManoMesh.displayName = "ManoMesh";
  * 使用 React Three Fiber 渲染手部 3D mesh
  * 支持轨道控制（旋转/缩放/平移）
  */
-export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
+export default function Scene3D({ 
+  currentFrame, 
+  tracks, 
+  faces,
+  interpolationEnabled = true 
+}: Scene3DProps) {
   // 计算基础偏移量。OpenCV 坐标系以相机光心为原点，手往往在Z轴远处（例如 Z=2.5m）
   // 导致放在 Threejs 中心时偏离网格中心。我们提取出第一帧的手部位置将它拉回原点附近
   const centerOffset = useMemo((): [number, number, number] => {
@@ -167,7 +174,7 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
           // 计算插值参数
           const frameInt = Math.floor(currentFrame);
           const frameNext = Math.min(totalTrackFrames - 1, frameInt + 1);
-          const alpha = currentFrame % 1;
+          const alpha = interpolationEnabled ? (currentFrame % 1) : 0;
 
           // 1. 插值位置 (cam_trans)
           const p1 = track.cam_trans?.[frameInt];

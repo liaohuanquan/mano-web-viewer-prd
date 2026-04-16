@@ -18,6 +18,8 @@ interface UsePlayerReturn {
   prevFrame: () => void;
   nextFrame: () => void;
   seek: (frame: number) => void;
+  interpolationEnabled: boolean;
+  setInterpolationEnabled: (enabled: boolean) => void;
 }
 
 /**
@@ -31,6 +33,7 @@ export function usePlayer({
 }: UsePlayerOptions): UsePlayerReturn {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [interpolationEnabled, setInterpolationEnabled] = useState(true);
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
 
@@ -114,5 +117,7 @@ export function usePlayer({
     prevFrame,
     nextFrame,
     seek,
+    interpolationEnabled,
+    setInterpolationEnabled,
   };
 }

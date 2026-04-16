@@ -23,6 +23,8 @@ interface VideoOverlayProps {
   tracks?: ManoTrack[];
   /** 顶点面片（只做边界绘制） */
   faces?: number[][];
+  /** 是否开启插值 */
+  interpolationEnabled?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export default function VideoOverlay({
   onPause,
   tracks = [],
   faces = [],
+  interpolationEnabled = true,
 }: VideoOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -108,14 +111,14 @@ export default function VideoOverlay({
           const scaleX = canvas.width / 1280.0;
           const scaleY = canvas.height / 720.0;
           
-          const fx = 692.0 * scaleX;
-          const fy = 691.0 * scaleY;
+          const fx = 1382*5/2.0 * scaleX;
+          const fy = 1382*5/2.0 * scaleY;
           const cx = 639.0 * scaleX;
           const cy = 357.0 * scaleY;
 
           // 使用透传过来的高精度 currentFrame
           const frameInt = Math.floor(currentFrame);
-          const alpha = currentFrame % 1;
+          const alpha = interpolationEnabled ? (currentFrame % 1) : 0;
 
           tracks.forEach(track => {
             const totalTrackFrames = track.cam_trans?.length || 0;

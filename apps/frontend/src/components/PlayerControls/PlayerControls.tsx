@@ -13,6 +13,8 @@ interface PlayerControlsProps {
   onPrevFrame: () => void;
   onNextFrame: () => void;
   onSeek: (frame: number) => void;
+  interpolationEnabled: boolean;
+  onToggleInterpolation: () => void;
 }
 
 /**
@@ -29,6 +31,8 @@ export default function PlayerControls({
   onPrevFrame,
   onNextFrame,
   onSeek,
+  interpolationEnabled,
+  onToggleInterpolation,
 }: PlayerControlsProps) {
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +98,16 @@ export default function PlayerControls({
           title="下一帧"
         >
           ⏭
+        </button>
+
+        <div className={styles.divider} />
+
+        <button
+          className={`${styles.toggleBtn} ${interpolationEnabled ? styles.active : ''}`}
+          onClick={onToggleInterpolation}
+          title={interpolationEnabled ? '关闭插值' : '开启插值'}
+        >
+          {interpolationEnabled ? '插值' : '离散'}
         </button>
       </div>
 

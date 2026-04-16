@@ -164,6 +164,7 @@ export default function HomePage() {
                     onPause={player.pause}
                     tracks={tracks}
                     faces={faces}
+                    interpolationEnabled={player.interpolationEnabled}
                   />
                 )}
               </div>
@@ -173,7 +174,12 @@ export default function HomePage() {
             <div className={styles.panelRight}>
               <span className={styles.panelLabel}>3D View</span>
               <div className={styles.viewContainer}>
-                <Scene3D currentFrame={player.currentFrame} tracks={tracks} faces={faces} />
+                <Scene3D 
+                  currentFrame={player.currentFrame} 
+                  tracks={tracks} 
+                  faces={faces} 
+                  interpolationEnabled={player.interpolationEnabled}
+                />
               </div>
             </div>
           </>
@@ -193,6 +199,8 @@ export default function HomePage() {
             onPrevFrame={player.prevFrame}
             onNextFrame={player.nextFrame}
             onSeek={player.seek}
+            interpolationEnabled={player.interpolationEnabled}
+            onToggleInterpolation={() => player.setInterpolationEnabled(!player.interpolationEnabled)}
           />
         </div>
       )}
