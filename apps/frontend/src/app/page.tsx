@@ -6,7 +6,7 @@ import FileUpload from '@/components/FileUpload/FileUpload';
 import PlayerControls from '@/components/PlayerControls/PlayerControls';
 import VideoOverlay from '@/components/VideoOverlay/VideoOverlay';
 import { usePlayer } from '@/hooks/usePlayer';
-import type { LoadingState } from '@/types/mano';
+import type { LoadingState, ManoTrack } from '@/types/mano';
 import styles from './page.module.css';
 
 /** 动态加载 3D 场景（禁用 SSR） */
@@ -25,6 +25,7 @@ export default function HomePage() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [totalFrames, setTotalFrames] = useState(0);
   const [seqName, setSeqName] = useState<string>('');
+  const [tracks, setTracks] = useState<ManoTrack[]>([]);
 
   const player = usePlayer({ totalFrames, fps: 30 });
 
@@ -62,10 +63,11 @@ export default function HomePage() {
       }
 
       const result = await response.json();
-      console.log('[handleFilesSelected] 解析成功:', result.seq_name, '帧数:', result.total_frames);
+      console.log('[handleFilesSelected] 解析成功:', result.seq_name, '帧数:', result.total_frames, 'Tracks:', result.tracks?.length);
 
       setSeqName(result.seq_name || '');
       setTotalFrames(result.total_frames || 0);
+      setTracks(result.tracks || []);
       setLoadingState('ready');
 
     } catch (err) {
@@ -89,6 +91,7 @@ export default function HomePage() {
     setVideoUrl(null);
     setTotalFrames(0);
     setSeqName('');
+    setTracks([]);
     setError(null);
     setLoadingState('idle');
   }, [videoUrl]);
@@ -158,7 +161,7 @@ export default function HomePage() {
             <div className={styles.panelRight}>
               <span className={styles.panelLabel}>3D View</span>
               <div className={styles.viewContainer}>
-                <Scene3D currentFrame={player.currentFrame} />
+                <Scene3D currentFrame={player.currentFrame} tracks={tracks} />
               </div>
             </div>
           </>

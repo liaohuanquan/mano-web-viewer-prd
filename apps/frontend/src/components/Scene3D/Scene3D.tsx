@@ -4,11 +4,15 @@ import { useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import * as THREE from 'three';
+import { useEffect } from 'react';
+import type { ManoTrack } from '@/types/mano';
 import styles from './Scene3D.module.css';
 
 interface Scene3DProps {
   /** 当前帧索引 */
   currentFrame: number;
+  /** 手部轨迹数据 */
+  tracks: ManoTrack[];
 }
 
 /**
@@ -60,9 +64,18 @@ function PlaceholderHand({ position, color }: { position: [number, number, numbe
  * 使用 React Three Fiber 渲染手部 3D mesh
  * 支持轨道控制（旋转/缩放/平移）
  */
-export default function Scene3D({ currentFrame }: Scene3DProps) {
-  // currentFrame 后续用于驱动 mesh 更新
-  void currentFrame;
+export default function Scene3D({ currentFrame, tracks }: Scene3DProps) {
+  // 打印调试信息
+  useEffect(() => {
+    if (tracks && tracks.length > 0) {
+      const frameData = tracks.map(t => ({
+        tid: t.trackId,
+        trans: t.camTrans?.[currentFrame],
+        side: t.isRight?.[currentFrame] === 1 ? 'Right' : 'Left'
+      }));
+      console.log(`[Scene3D] frame=${currentFrame}`, frameData);
+    }
+  }, [currentFrame, tracks]);
 
   return (
     <div className={styles.container}>
@@ -91,9 +104,25 @@ export default function Scene3D({ currentFrame }: Scene3DProps) {
         {/* 网格地面 */}
         <Ground />
 
-        {/* 占位手部（左手-青色，右手-珊瑚色） */}
-        <PlaceholderHand position={[-0.15, 0, 0]} color="#00CED1" />
-        <PlaceholderHand position={[0.15, 0, 0]} color="#FF6B6B" />
+        {/* 动态手部渲染 */}
+        {tracks.map((track) => {
+          const pos = track.camTrans?.[currentFrame];
+          if (!pos || (pos[0] === 0 && pos[1] === 0 && pos[2] === 0)) return null;
+
+          // 这里的颜色保持与 2D 视图一致
+          const color = track.isRight[currentFrame] === 1 ? '#FF6B6B' : '#00CED1';
+
+          return (
+            <group key={track.trackId} position={[pos[0], pos[1], pos[2]]}>
+              <PlaceholderHand position={[0, 0, 0]} color={color} />
+              {/* 可视化 track ID */}
+              <mesh position={[0, 0.15, 0]}>
+                <sphereGeometry args={[0.02, 8, 8]} />
+                <meshBasicMaterial color="white" />
+              </mesh>
+            </group>
+          );
+        })}
 
         {/* 轨道控制器 */}
         <OrbitControls
