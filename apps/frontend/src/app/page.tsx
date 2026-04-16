@@ -26,6 +26,7 @@ export default function HomePage() {
   const [totalFrames, setTotalFrames] = useState(0);
   const [seqName, setSeqName] = useState<string>('');
   const [tracks, setTracks] = useState<ManoTrack[]>([]);
+  const [faces, setFaces] = useState<number[][]>([]);
 
   const player = usePlayer({ totalFrames, fps: 30 });
 
@@ -68,6 +69,7 @@ export default function HomePage() {
       setSeqName(result.seq_name || '');
       setTotalFrames(result.total_frames || 0);
       setTracks(result.tracks || []);
+      setFaces(result.faces || []);
       setLoadingState('ready');
 
     } catch (err) {
@@ -92,6 +94,7 @@ export default function HomePage() {
     setTotalFrames(0);
     setSeqName('');
     setTracks([]);
+    setFaces([]);
     setError(null);
     setLoadingState('idle');
   }, [videoUrl]);
@@ -161,7 +164,7 @@ export default function HomePage() {
             <div className={styles.panelRight}>
               <span className={styles.panelLabel}>3D View</span>
               <div className={styles.viewContainer}>
-                <Scene3D currentFrame={player.currentFrame} tracks={tracks} />
+                <Scene3D currentFrame={player.currentFrame} tracks={tracks} faces={faces} />
               </div>
             </div>
           </>

@@ -34,8 +34,12 @@ npm run dev
 
 ```bash
 cd apps/backend
-pip install -r requirements.txt
+pip install -r requirements.txt```bash
 uvicorn main:app --reload --port 8000
+```
+
+```
+
 ```
 
 ### Docker 部署

@@ -6,27 +6,27 @@
 /** 单个 track 的 MANO 参数（前端使用的顶点数据格式） */
 export interface ManoTrack {
   /** track 标识 */
-  trackId: number;
-  /** 每帧的顶点数据 (T 帧, 每帧 778 个顶点, 每顶点 xyz) */
-  verts: number[][][];
+  track_id: number;
   /** 每帧的相机平移 (T 帧, xyz) */
-  camTrans: number[][];
+  cam_trans: number[][];
   /** 手的类型：0=左手, 1=右手 */
-  isRight: number[];
+  is_right: number[];
+  /** 每帧的顶点数据 (可选) */
+  verts?: number[][][];
 }
 
 /** PKL 解析后的完整数据 */
 export interface ManoData {
   /** 序列名称 */
-  seqName: string;
+  seq_name: string;
   /** 帧名称列表 */
-  frameNames: string[];
+  frame_names: string[];
   /** 总帧数 */
-  totalFrames: number;
+  total_frames: number;
   /** 所有 track 数据 */
   tracks: ManoTrack[];
   /** MANO 面片索引 (共享) */
-  faces: number[][];
+  faces?: number[][];
 }
 
 /** API 响应包装 */
