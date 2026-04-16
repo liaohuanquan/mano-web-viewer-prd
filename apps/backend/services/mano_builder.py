@@ -1,7 +1,16 @@
 import os
 import torch
-import smplx
+import numpy as np
 
+np.bool = bool
+np.int = int
+np.float = float
+np.complex = complex
+np.object = object
+np.unicode = str
+np.str = str
+
+import smplx
 # 设置 MANO 模型权重所在的目录
 MODEL_ROOT = os.environ.get("MANO_MODEL_PATH", "/app/model")
 
@@ -41,7 +50,7 @@ class ManoBuilder:
         if not self.is_ready:
             return None
             
-        model = self.mano_right if is_right else self.mano_left
+        model = self.mano_right
         
         # 将 numpy array 转为 torch tensor
         # body_pose 应该是 (1, 15, 3) -> 展平为 (1, 45)
