@@ -41,7 +41,7 @@ export default function PlayerControls({
     const rect = progressRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, x / rect.width));
-    const frame = Math.round(ratio * (totalFrames - 1));
+    const frame = ratio * (totalFrames - 1);
     console.log('[handleProgressClick] 跳转到帧:', frame);
     onSeek(frame);
   }, [totalFrames, onSeek]);
@@ -55,7 +55,7 @@ export default function PlayerControls({
       const rect = progressRef.current.getBoundingClientRect();
       const x = moveEvent.clientX - rect.left;
       const ratio = Math.max(0, Math.min(1, x / rect.width));
-      const frame = Math.round(ratio * (totalFrames - 1));
+      const frame = ratio * (totalFrames - 1);
       onSeek(frame);
     };
 
@@ -115,7 +115,7 @@ export default function PlayerControls({
 
       {/* 帧信息 */}
       <div className={styles.frameInfo}>
-        <span className={styles.frameInfoCurrent}>{currentFrame + 1}</span>
+        <span className={styles.frameInfoCurrent}>{Math.floor(currentFrame) + 1}</span>
         <span className={styles.frameInfoSep}>/</span>
         <span>{totalFrames}</span>
       </div>

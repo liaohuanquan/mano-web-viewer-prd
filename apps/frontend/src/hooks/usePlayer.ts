@@ -42,14 +42,17 @@ export function usePlayer({
     const interval = 1000 / fps;
 
     const tick = (timestamp: number) => {
-      if (timestamp - lastTimeRef.current >= interval) {
+      const elapsed = timestamp - lastTimeRef.current;
+      if (elapsed >= interval) {
+        // 计算实际经过的帧数（支持浮动帧率）
+        const framesPassed = elapsed / interval;
         lastTimeRef.current = timestamp;
+
         setCurrentFrame((prev) => {
-          const next = prev + 1;
-          if (next >= totalFrames) {
-            // 播放到末尾暂停
+          const next = prev + framesPassed;
+          if (next >= totalFrames - 1) {
             setIsPlaying(false);
-            return prev;
+            return totalFrames - 1;
           }
           return next;
         });
@@ -85,18 +88,19 @@ export function usePlayer({
 
   const prevFrame = useCallback(() => {
     setIsPlaying(false);
-    setCurrentFrame((prev) => Math.max(0, prev - 1));
+    setCurrentFrame((prev) => Math.max(0, Math.ceil(prev - 1)));
   }, []);
 
   const nextFrame = useCallback(() => {
     setIsPlaying(false);
-    setCurrentFrame((prev) => Math.min(totalFrames - 1, prev + 1));
+    setCurrentFrame((prev) => Math.min(totalFrames - 1, Math.floor(prev + 1)));
   }, [totalFrames]);
 
   const seek = useCallback((frame: number) => {
     const clamped = Math.max(0, Math.min(totalFrames - 1, frame));
     setCurrentFrame((prev) => {
-      if (prev === clamped) return prev;
+      // 允许 0.001 的极小差异，以支持平滑更新
+      if (Math.abs(prev - clamped) < 0.001) return prev;
       return clamped;
     });
   }, [totalFrames]);

@@ -82,7 +82,7 @@ export default function VideoOverlay({
     const syncLoop = () => {
       const video = videoRef.current;
       if (video && !video.paused) {
-        const frame = Math.floor(video.currentTime * fps);
+        const frame = video.currentTime * fps;
         onSync(frame);
       }
       animationFrameId = requestAnimationFrame(syncLoop);

@@ -161,38 +161,54 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
 
         {/* 动态手部渲染 */}
         {tracks.map((track) => {
-          const rawPos = track.cam_trans?.[currentFrame];
-          if (
-            !rawPos ||
-            (rawPos[0] === 0 && rawPos[1] === 0 && rawPos[2] === 0)
-          )
-            return null;
+          const totalTrackFrames = track.cam_trans?.length || 0;
+          if (totalTrackFrames === 0) return null;
 
-          // 坐标系转换：OpenCV (X-右, Y-下, Z-前) -> Three.js (X-右, Y-上, Z-后)
-          // 并减去我们在整个序列寻找出来的基础偏移量。这样手就位于网格(中心)附近。
-          const pos: [number, number, number] = [
-            rawPos[0] - centerOffset[0],
-            -rawPos[1] - centerOffset[1] + 0.1, // 微调使其浮在地面上
-            -rawPos[2] - centerOffset[2],
+          // 计算插值参数
+          const frameInt = Math.floor(currentFrame);
+          const frameNext = Math.min(totalTrackFrames - 1, frameInt + 1);
+          const alpha = currentFrame % 1;
+
+          // 1. 插值位置 (cam_trans)
+          const p1 = track.cam_trans?.[frameInt];
+          const p2 = track.cam_trans?.[frameNext];
+          
+          if (!p1 || !p2 || (p1[0] === 0 && p1[1] === 0 && p1[2] === 0)) return null;
+
+          // 线性插值坐标
+          const interpolatedPos: [number, number, number] = [
+            (p1[0] + (p2[0] - p1[0]) * alpha) - centerOffset[0],
+            -(p1[1] + (p2[1] - p1[1]) * alpha) - centerOffset[1] + 0.1,
+            -(p1[2] + (p2[2] - p1[2]) * alpha) - centerOffset[2],
           ];
 
-          // 颜色保持与 2D 视图一致
-          const isRight = track.is_right[currentFrame] === 1;
+          // 颜色与左右手设置
+          const isRight = track.is_right[frameInt] === 1;
           const color = isRight ? "#FF6B6B" : "#00CED1";
 
-          // 如果存在顶点数据并且存在全局 faces，则渲染真实的 MANO mesh；否则抛个异常（或先不渲染）
-          const frameVerts = track.verts?.[currentFrame];
-          const hasMesh =
-            frameVerts && frameVerts.length === 778 && faces && faces.length > 0;
+          // 2. 插值顶点 (verts)
+          const v1 = track.verts?.[frameInt];
+          const v2 = track.verts?.[frameNext];
+          let interpolatedVerts: number[][] | undefined = undefined;
+
+          if (v1 && v2 && v1.length === 778 && v2.length === 778) {
+            interpolatedVerts = v1.map((v, i) => [
+              v[0] + (v2[i][0] - v[0]) * alpha,
+              v[1] + (v2[i][1] - v[1]) * alpha,
+              v[2] + (v2[i][2] - v[2]) * alpha,
+            ]);
+          }
+
+          const hasMesh = interpolatedVerts && faces && faces.length > 0;
 
           return (
-            <group key={track.track_id} position={pos}>
+            <group key={track.track_id} position={interpolatedPos}>
               {hasMesh ? (
                 <group scale={[isRight ? 1 : -1, 1, 1]}>
                   <ManoMesh
                     position={[0, 0, 0]}
                     color={color}
-                    verts={frameVerts}
+                    verts={interpolatedVerts!}
                     faces={faces!}
                   />
                 </group>
@@ -202,11 +218,6 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
                   <meshStandardMaterial color={color} roughness={0.3} />
                 </mesh>
               )}
-              {/* 可视化 track ID */}
-              {/* <mesh position={[0, 0.15, 0]}>
-                <sphereGeometry args={[0.02, 8, 8]} />
-                <meshBasicMaterial color="white" />
-              </mesh> */}
             </group>
           );
         })}
