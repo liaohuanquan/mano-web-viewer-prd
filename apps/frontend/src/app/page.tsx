@@ -162,6 +162,8 @@ export default function HomePage() {
                     isPlaying={player.isPlaying}
                     onSync={player.seek}
                     onPause={player.pause}
+                    tracks={tracks}
+                    faces={faces}
                   />
                 )}
               </div>
