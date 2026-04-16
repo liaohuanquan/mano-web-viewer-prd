@@ -111,6 +111,15 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
     return [0, 0, 0];
   }, [tracks]);
 
+  const controlsRef = useRef<any>(null);
+
+  /** 重置相机视角到默认位置 */
+  const handleResetView = () => {
+    if (controlsRef.current) {
+      controlsRef.current.reset();
+    }
+  };
+
   // 打印调试信息
   useEffect(() => {
     if (tracks && tracks.length > 0) {
@@ -127,11 +136,16 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
   return (
     <div className={styles.container}>
       {/* 屏幕交互提示文字 */}
-      {/* <div className={styles.hints}>
+      <div className={styles.hints}>
         <span>鼠标左键：旋转视角</span>
         <span>鼠标右键：平移视角</span>
         <span>鼠标滚轮：缩放距离</span>
-      </div> */}
+      </div>
+
+      {/* 重置视角按钮 */}
+      <button className={styles.resetButton} onClick={handleResetView}>
+        重置视角
+      </button>
 
       <Canvas
         camera={{
@@ -212,6 +226,8 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
 
         {/* 轨道控制器 */}
         <OrbitControls
+          ref={controlsRef}
+          makeDefault
           enableDamping
           dampingFactor={0.08}
           minDistance={0.3}
