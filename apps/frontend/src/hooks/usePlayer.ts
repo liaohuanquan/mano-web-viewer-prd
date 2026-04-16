@@ -5,6 +5,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 interface UsePlayerOptions {
   totalFrames: number;
   fps?: number;
+  /** 是否使用内部定时器驱动播放。如果由外部（如视频）驱动，可设为 false */
+  useInternalTimer?: boolean;
 }
 
 interface UsePlayerReturn {
@@ -22,7 +24,11 @@ interface UsePlayerReturn {
  * 播放控制 hook
  * 管理帧索引状态、播放/暂停逻辑
  */
-export function usePlayer({ totalFrames, fps = 30 }: UsePlayerOptions): UsePlayerReturn {
+export function usePlayer({ 
+  totalFrames, 
+  fps = 30, 
+  useInternalTimer = true 
+}: UsePlayerOptions): UsePlayerReturn {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const animationRef = useRef<number | null>(null);
@@ -30,7 +36,8 @@ export function usePlayer({ totalFrames, fps = 30 }: UsePlayerOptions): UsePlaye
 
   /** 播放循环 */
   useEffect(() => {
-    if (!isPlaying || totalFrames <= 0) return;
+    // 如果不使用内部定时器，或者已暂停，则不运行 tick
+    if (!isPlaying || !useInternalTimer || totalFrames <= 0) return;
 
     const interval = 1000 / fps;
 
@@ -58,7 +65,7 @@ export function usePlayer({ totalFrames, fps = 30 }: UsePlayerOptions): UsePlaye
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, totalFrames, fps]);
+  }, [isPlaying, totalFrames, fps, useInternalTimer]);
 
   const play = useCallback(() => {
     if (totalFrames <= 0) return;
@@ -88,7 +95,10 @@ export function usePlayer({ totalFrames, fps = 30 }: UsePlayerOptions): UsePlaye
 
   const seek = useCallback((frame: number) => {
     const clamped = Math.max(0, Math.min(totalFrames - 1, frame));
-    setCurrentFrame(clamped);
+    setCurrentFrame((prev) => {
+      if (prev === clamped) return prev;
+      return clamped;
+    });
   }, [totalFrames]);
 
   return {

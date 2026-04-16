@@ -28,7 +28,11 @@ export default function HomePage() {
   const [tracks, setTracks] = useState<ManoTrack[]>([]);
   const [faces, setFaces] = useState<number[][]>([]);
 
-  const player = usePlayer({ totalFrames, fps: 30 });
+  const player = usePlayer({ 
+    totalFrames, 
+    fps: 30,
+    useInternalTimer: !videoUrl // 有视频时禁用内部定时器，由视频驱动
+  });
 
   /** 是否处于文件选择阶段 */
   const isUploadPhase = loadingState === 'idle' || loadingState === 'error';
@@ -153,8 +157,11 @@ export default function HomePage() {
                   <VideoOverlay
                     videoUrl={videoUrl}
                     currentFrame={player.currentFrame}
+                    totalFrames={totalFrames}
                     fps={player.fps}
                     isPlaying={player.isPlaying}
+                    onSync={player.seek}
+                    onPause={player.pause}
                   />
                 )}
               </div>
