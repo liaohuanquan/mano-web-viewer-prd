@@ -26,14 +26,14 @@ class ManoBuilder:
                 model_path=MODEL_ROOT,
                 is_rhand=True,
                 use_pca=False,
-                flat_hand_mean=False
+                flat_hand_mean=True
             ).to(self.device)
             
             self.mano_left = smplx.MANO(
                 model_path=MODEL_ROOT,
                 is_rhand=False,
                 use_pca=False,
-                flat_hand_mean=False
+                flat_hand_mean=True
             ).to(self.device)
             
             self.faces = self.mano_right.faces
