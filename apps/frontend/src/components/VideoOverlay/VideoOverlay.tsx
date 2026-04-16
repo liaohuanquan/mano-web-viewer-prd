@@ -79,9 +79,15 @@ export default function VideoOverlay({
         src={videoUrl}
         muted
         playsInline
+        autoPlay
         preload="auto"
         onLoadedMetadata={handleVideoResize}
         onResize={handleVideoResize}
+        style={{ 
+          transform: 'translateZ(0)', 
+          willChange: 'transform',
+          backfaceVisibility: 'hidden'
+        }}
       />
       {/* 2D overlay Canvas，后续用于叠加手部 mesh */}
       <canvas

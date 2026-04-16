@@ -98,20 +98,20 @@ ManoMesh.displayName = "ManoMesh";
 export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
   // 计算基础偏移量。OpenCV 坐标系以相机光心为原点，手往往在Z轴远处（例如 Z=2.5m）
   // 导致放在 Threejs 中心时偏离网格中心。我们提取出第一帧的手部位置将它拉回原点附近
-  const centerOffset = useMemo(() => {
+  const centerOffset = useMemo((): [number, number, number] => {
     if (!tracks || tracks.length === 0) return [0, 0, 0];
-    for (const track of tracks) {
-      for (let i = 0; i < track.cam_trans.length; i++) {
-        const p1 = track.cam_trans[i];
-        if (p1 && (p1[0] !== 0 || p1[1] !== 0 || p1[2] !== 0)) {
-          return [p1[0], -p1[1], -p1[2]];
-        }
-      }
-    }
-    return [0, 0, 0];
+    
+    // 寻找整个序列中第一个出现的有效坐标作为偏移基准
+    const firstValidTrack = tracks.find(t => t.cam_trans.some(p => p[0] !== 0 || p[1] !== 0 || p[2] !== 0));
+    if (!firstValidTrack) return [0, 0, 0];
+
+    const firstValidPos = firstValidTrack.cam_trans.find(p => p[0] !== 0 || p[1] !== 0 || p[2] !== 0);
+    if (!firstValidPos) return [0, 0, 0];
+
+    return [firstValidPos[0], -firstValidPos[1], -firstValidPos[2]];
   }, [tracks]);
 
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
 
   /** 重置相机视角到默认位置 */
   const handleResetView = () => {
@@ -122,25 +122,11 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
 
   // 打印调试信息
   useEffect(() => {
-    if (tracks && tracks.length > 0) {
-      const frameData = tracks.map((t) => ({
-        tid: t.track_id,
-        trans: t.cam_trans?.[currentFrame],
-        vertsLen: t.verts?.[currentFrame]?.length,
-        side: t.is_right?.[currentFrame] === 1 ? "Right" : "Left",
-      }));
-      // console.log(`[Scene3D] frame=${currentFrame}`, frameData);
-    }
+    // 仅在调试时检查数据
   }, [currentFrame, tracks]);
 
   return (
     <div className={styles.container}>
-      {/* 屏幕交互提示文字 */}
-      <div className={styles.hints}>
-        <span>鼠标左键：旋转视角</span>
-        <span>鼠标右键：平移视角</span>
-        <span>鼠标滚轮：缩放距离</span>
-      </div>
 
       {/* 重置视角按钮 */}
       <button className={styles.resetButton} onClick={handleResetView}>
@@ -154,8 +140,9 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
           near: 0.01,
           far: 100,
         }}
+        dpr={1} // 锁定像素比，减轻显卡压力
         gl={{
-          antialias: true,
+          antialias: false, // 关闭抗锯齿，大幅提升性能
           alpha: false,
           powerPreference: "high-performance",
         }}
@@ -216,10 +203,10 @@ export default function Scene3D({ currentFrame, tracks, faces }: Scene3DProps) {
                 </mesh>
               )}
               {/* 可视化 track ID */}
-              <mesh position={[0, 0.15, 0]}>
+              {/* <mesh position={[0, 0.15, 0]}>
                 <sphereGeometry args={[0.02, 8, 8]} />
                 <meshBasicMaterial color="white" />
-              </mesh>
+              </mesh> */}
             </group>
           );
         })}
