@@ -4,20 +4,23 @@ services:
     build:
       context: ./apps/backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./public/mock:/app/mock # 挂载测试数据
       - ./public/model:/app/model # 挂载 MANO 模型文件
+      - ${UFS_DEV_PATH:-./public/mock/synadata_dev}:/app/data/synadata_dev # 挂载 UFS 开发存储
+      - ${UFS_STORAGE_PATH:-./public/mock/synadata_storage}:/app/data/synadata_storage # 挂载 UFS 数据存储
     environment:
       - ENV=production
+      - ALLOWED_ORIGINS=http://${HOST_IP:-localhost}:${FRONTEND_PORT:-3000},http://localhost:3000,http://localhost:18080
 
   # 前端服务
   frontend:
     build:
       context: ./apps/frontend
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+      - NEXT_PUBLIC_API_URL=http://${HOST_IP:-localhost}:${BACKEND_PORT:-8000}/api
     depends_on:
       - backend

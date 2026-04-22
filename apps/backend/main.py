@@ -14,10 +14,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# 跨域配置（开发环境允许前端访问）
+import os
+
+# 跨域配置
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS", 
+    "http://localhost:3000,http://localhost:18080"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

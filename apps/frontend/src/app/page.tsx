@@ -57,7 +57,8 @@ export default function HomePage() {
 
       setLoadingState('parsing');
 
-      const response = await fetch('http://localhost:8000/api/parse-pkl', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const response = await fetch(`${apiUrl}/parse-pkl`, {
         method: 'POST',
         body: formData,
       });
