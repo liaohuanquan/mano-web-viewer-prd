@@ -133,7 +133,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const saveToRecent = (node: FileNode) => {
     const filtered = recentProjects.filter(p => p.id !== node.id);
-    const updated = [node, ...filtered].slice(0, 5); // 只保留最近 5 个
+    const updated = [node, ...filtered].slice(0, 10); // 只保留最近 10 个
     setRecentProjects(updated);
     localStorage.setItem('mano_recent_projects', JSON.stringify(updated));
   };
@@ -151,6 +151,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         <div 
           className={`${styles.treeHeader} ${selectedFile?.id === node.id ? styles.treeHeaderActive : ''}`}
           onClick={() => node.type === 'directory' ? toggleNode(node) : handleFileSelect(node)}
+          title={node.id} // 鼠标悬停显示完整路径
         >
           <span className={styles.treeIcon}>
             {node.type === 'directory' ? (expandedNodes[node.id] ? '📂' : '📁') : '📄'}
@@ -239,7 +240,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
               <div className={styles.recentTitle}>最近播放</div>
               {recentProjects.length > 0 ? recentProjects.map(p => (
                 <div key={p.id} className={styles.recentItem} onClick={() => handleFileSelect(p)}>
-                  <span>🕒 {p.name.split('/').pop()}</span>
+                  <span> {p.name.split('/').pop()}</span>
                   <span className={styles.recentPath}>{p.id}</span>
                 </div>
               )) : (
