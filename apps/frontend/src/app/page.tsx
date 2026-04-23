@@ -90,9 +90,58 @@ export default function HomePage() {
     }
   }, [videoUrl]);
 
+  /** 处理服务器文件选择提交 */
+  const handleServerFileSelected = useCallback(async (pklPath: string, mp4Path: string) => {
+    console.log('[handleServerFileSelected] 开始处理服务器文件:', pklPath, mp4Path);
+    setError(null);
+    setLoadingState('parsing');
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      
+      // 构建服务器静态文件的 URL
+      // 注意：这里的 /server-data 需要与后端 main.py 中 mounted 的路径一致
+      // mp4Path 是相对于 outputs/ 的路径
+      const baseUrl = apiUrl.replace('/api', '');
+      setVideoUrl(`${baseUrl}/server-data/${mp4Path}`);
+
+      const response = await fetch(`${apiUrl}/parse-server-pkl`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          pkl_path: pklPath,
+          mp4_path: mp4Path 
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({ detail: '服务端错误' }));
+        throw new Error(errData.detail || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('[handleServerFileSelected] 解析成功:', result.seq_name);
+
+      setSeqName(result.seq_name || '');
+      setTotalFrames(result.total_frames || 0);
+      setTracks(result.tracks || []);
+      setFaces(result.faces || []);
+      setLoadingState('ready');
+
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '未知错误';
+      console.log('[handleServerFileSelected] 加载失败:', message);
+      setError(message);
+      setLoadingState('error');
+      setVideoUrl(null);
+    }
+  }, []);
+
   /** 重新选择文件 */
   const handleReset = useCallback(() => {
-    if (videoUrl) {
+    if (videoUrl && videoUrl.startsWith('blob:')) {
       URL.revokeObjectURL(videoUrl);
     }
     setVideoUrl(null);
@@ -143,7 +192,8 @@ export default function HomePage() {
           /* 上传/加载阶段 - 居中显示上传组件 */
           <div className={styles.emptyState}>
             <FileUpload
-              onFilesSelected={handleFilesSelected}
+              onLocalFilesSelected={handleFilesSelected}
+              onServerFileSelected={handleServerFileSelected}
               isLoading={isLoading}
             />
           </div>

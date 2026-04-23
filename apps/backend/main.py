@@ -5,6 +5,8 @@ MANO Web Viewer 后端服务入口
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 from routers.pkl_router import router as pkl_router
 
@@ -13,8 +15,6 @@ app = FastAPI(
     description="PKL 文件解析与 MANO 数据处理服务",
     version="0.1.0",
 )
-
-import os
 
 # 跨域配置
 allowed_origins = os.getenv(
@@ -30,9 +30,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 挂载服务器目录用于读取文件（如 mp4）
+OUTPUTS_DIR = "/app/data/outputs"
+app.mount("/server-data", StaticFiles(directory=OUTPUTS_DIR), name="server-data")
+
 # 注册路由
 app.include_router(pkl_router, prefix="/api")
-
 
 @app.get("/health")
 async def health_check():

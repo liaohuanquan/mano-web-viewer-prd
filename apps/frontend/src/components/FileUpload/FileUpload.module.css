@@ -177,3 +177,100 @@
   font-size: 13px;
   color: var(--color-text-secondary);
 }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  background: var(--color-bg-tertiary);
+  padding: 4px;
+  border-radius: var(--radius-md);
+}
+
+.tab {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tabActive {
+  background: var(--color-bg-primary);
+  color: var(--color-accent);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* 服务器项目树状浏览器 */
+.serverExplorer {
+  width: 100%;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.treeNode {
+  user-select: none;
+}
+
+.treeHeader {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.treeHeader:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.treeHeaderActive {
+  background: var(--color-accent-glow) !important;
+  color: var(--color-accent) !important;
+  font-weight: 600;
+}
+
+.treeIcon {
+  margin-right: 8px;
+  width: 16px;
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.treeChildren {
+  margin-left: 18px;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.fileInfo {
+  font-size: 10px;
+  opacity: 0.4;
+  margin-left: 8px;
+  font-family: var(--font-mono);
+}
+
+.noProjects {
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}

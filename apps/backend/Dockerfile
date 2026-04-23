@@ -4,8 +4,8 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # 设置环境变量
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # 安装系统依赖（如需 OpenCV 等可能需要额外的库，此处先安装基础）
 RUN apt-get update && apt-get install -y --no-install-recommends \
