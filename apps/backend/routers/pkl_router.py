@@ -87,12 +87,31 @@ async def parse_pkl(
 
 OUTPUTS_DIR = "/app/data/outputs"
 
+import time
+
+# 内存搜索缓存：key 为 query, value 为 (timestamp, results)
+# 针对 1.73TB 内存，我们可以缓存非常大量的结果
+SEARCH_CACHE = {}
+CACHE_TTL = 300  # 缓存有效期 5 分钟
+
 @router.get("/projects")
 async def list_projects(path: str = "", query: str = ""):
-    """获取项目层级，支持按需加载或全局搜索"""
+    """列出服务器上的项目或进行全局搜索"""
+    
+    # 检查缓存
+    if query:
+        query_lower = query.lower()
+        if query_lower in SEARCH_CACHE:
+            ts, results = SEARCH_CACHE[query_lower]
+            if time.time() - ts < CACHE_TTL:
+                return {"projects": results}
+        
     # 如果有查询语句，执行全局模糊搜索
     if query:
-        return await search_projects_globally(query)
+        res = await search_projects_globally(query)
+        # 更新缓存
+        SEARCH_CACHE[query.lower()] = (time.time(), res["projects"])
+        return res
         
     # 否则执行原有的按需加载逻辑
     if path:

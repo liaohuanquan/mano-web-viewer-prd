@@ -68,7 +68,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
-    }, 500);
+    }, 300); // 缩短为 300ms
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -154,7 +154,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const saveToRecent = (node: FileNode) => {
     const filtered = recentProjects.filter(p => p.id !== node.id);
-    const updated = [node, ...filtered].slice(0, 10); // 只保留最近 10 个
+    const updated = [node, ...filtered].slice(0, 20); // 增加到 20 个
     setRecentProjects(updated);
     localStorage.setItem('mano_recent_projects', JSON.stringify(updated));
   };
