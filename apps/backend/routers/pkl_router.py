@@ -88,8 +88,13 @@ async def parse_pkl(
 OUTPUTS_DIR = "/app/data/outputs"
 
 @router.get("/projects")
-async def list_projects(path: str = ""):
-    """按需获取服务器上的项目层级（非递归）"""
+async def list_projects(path: str = "", query: str = ""):
+    """获取项目层级，支持按需加载或全局搜索"""
+    # 如果有查询语句，执行全局模糊搜索
+    if query:
+        return await search_projects_globally(query)
+        
+    # 否则执行原有的按需加载逻辑
     if path:
         safe_path = path.lstrip('/')
         target_dir = os.path.abspath(os.path.join(OUTPUTS_DIR, safe_path))
@@ -137,6 +142,40 @@ async def list_projects(path: str = ""):
     except Exception as e:
         print(f"Error scanning {target_dir}: {e}")
     return {"projects": tree}
+
+async def search_projects_globally(query: str):
+    """在服务器 outputs 目录下执行全局模糊搜索"""
+    results = []
+    query = query.lower()
+    count = 0
+    # 限制搜索最大深度和结果数量以保证性能
+    for root, dirs, files in os.walk(OUTPUTS_DIR):
+        # 限制深度或结果数
+        if count > 50: break 
+        
+        pkls = [f for f in files if f.endswith('.pkl') and query in f.lower()]
+        mp4s = [f for f in files if f.endswith('.mp4')]
+        
+        for pkl in pkls:
+            base_name = pkl[:-4]
+            matching_mp4 = next((f for f in mp4s if base_name in f), None)
+            if not matching_mp4 and len(mp4s) == 1:
+                matching_mp4 = mp4s[0]
+            
+            if matching_mp4:
+                rel_root = os.path.relpath(root, OUTPUTS_DIR)
+                pkl_rel_path = os.path.join(rel_root, pkl) if rel_root != "." else pkl
+                mp4_rel_path = os.path.join(rel_root, matching_mp4) if rel_root != "." else matching_mp4
+                
+                results.append({
+                    "id": pkl_rel_path,
+                    "name": f"{rel_root}/{base_name}", # 显示路径以防重名
+                    "type": "file",
+                    "pkl_path": pkl_rel_path,
+                    "mp4_path": mp4_rel_path
+                })
+                count += 1
+    return {"projects": results}
 
 
 class ParseServerPklRequest(BaseModel):

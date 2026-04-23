@@ -207,16 +207,107 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-/* 服务器项目树状浏览器 */
-.serverExplorer {
+/* 服务器项目树状浏览器容器 */
+.explorerWrapper {
+  display: flex;
+  gap: 12px;
   width: 100%;
+  margin-top: 8px;
+}
+
+.serverExplorer {
+  flex: 2;
   background: var(--color-bg-tertiary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 8px;
-  max-height: 400px;
+  max-height: 450px;
   overflow-y: auto;
-  margin-top: 8px;
+}
+
+/* 工具栏样式 */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.searchInput {
+  flex: 1;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.searchInput:focus {
+  border-color: var(--color-accent);
+}
+
+.iconBtn {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.iconBtn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-accent);
+}
+
+/* 最近播放面板 */
+.recentPanel {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  max-height: 450px;
+  overflow-y: auto;
+}
+
+.recentTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.recentItem {
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  transition: all 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recentItem:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-accent);
+}
+
+.recentPath {
+  font-size: 10px;
+  opacity: 0.4;
+  display: block;
+  margin-top: 2px;
 }
 
 .treeNode {
