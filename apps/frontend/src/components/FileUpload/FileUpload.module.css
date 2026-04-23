@@ -407,8 +407,19 @@
 }
 
 .noProjects {
-  padding: 20px;
+  padding: 24px;
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.highlight {
+  background-color: rgba(0, 255, 21, 0.3);
+  color: #fff;
+  border-radius: 1px;
+  padding: 0 1px;
 }

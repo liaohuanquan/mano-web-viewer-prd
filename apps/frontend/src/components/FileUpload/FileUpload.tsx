@@ -44,7 +44,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [debouncedQuery, setDebouncedQuery] = useState<string>('');
   const [recentProjects, setRecentProjects] = useState<FileNode[]>([]);
 
-  const apiUrl = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:18000/api';
+  const apiUrl = (typeof window !== 'undefined' && window.location.hostname) 
+    ? `http://${window.location.hostname}:18000/api`
+    : 'http://localhost:18000/api';
 
   // 初始化历史记录
   useEffect(() => {
@@ -58,8 +60,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
   }, []);
 
-  // 搜索防抖逻辑 (0.5s)
+  // 搜索防抖逻辑
   useEffect(() => {
+    if (!searchQuery.trim()) {
+      setDebouncedQuery("");
+      return;
+    }
     const timer = setTimeout(() => {
       setDebouncedQuery(searchQuery);
     }, 500);
@@ -79,6 +85,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const fetchLevel = async (path: string, query: string = "") => {
     setIsFetchingProjects(true);
+    console.log(`[FileUpload] Fetching: path="${path}", query="${query}"`);
+    
+    // 只有在发起新搜索时才立即清空列表
+    if (query) {
+      setProjects([]);
+    }
+
     try {
       const url = query 
         ? `${apiUrl}/projects?query=${encodeURIComponent(query)}`
@@ -86,7 +99,15 @@ const FileUpload: React.FC<FileUploadProps> = ({
         
       const response = await fetch(url);
       const data = await response.json();
+      
+      // 竞态检查：如果当前请求的 query 与最新的 debouncedQuery 不匹配，且不是在非搜索模式下的目录导航
+      if (query !== debouncedQuery) {
+        console.warn(`[FileUpload] Stale response ignored: "${query}" vs current "${debouncedQuery}"`);
+        return;
+      }
+
       const newItems: FileNode[] = data.projects || [];
+      console.log(`[FileUpload] Received ${newItems.length} items`);
       
       if (query || path === "") {
         setProjects(newItems);
@@ -94,7 +115,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         setProjects((prev: FileNode[]) => updateChildrenInTree(prev, path, newItems));
       }
     } catch (error) {
-      console.error('Failed to load level', error);
+      console.error('[FileUpload] Failed to load level', error);
     } finally {
       setIsFetchingProjects(false);
     }
@@ -145,6 +166,25 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
+  const highlightText = (text: string, highlight: string) => {
+    if (!highlight.trim()) return <span>{text}</span>;
+    const regex = new RegExp(`(${highlight})`, 'gi');
+    const parts = text.split(regex);
+    return (
+      <span>
+        {parts.map((part, i) =>
+          regex.test(part) ? (
+            <span key={i} className={styles.highlight}>
+              {part}
+            </span>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </span>
+    );
+  };
+
   const renderTree = (nodes: FileNode[]) => {
     return nodes.map((node: FileNode) => (
       <div key={node.id} className={styles.treeNode}>
@@ -156,7 +196,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           <span className={styles.treeIcon}>
             {node.type === 'directory' ? (expandedNodes[node.id] ? '📂' : '📁') : '📄'}
           </span>
-          <span className={styles.nodeName}>{node.name}</span>
+          <span className={styles.nodeName}>{highlightText(node.name, debouncedQuery)}</span>
           {node.type === 'file' && <span className={styles.fileInfo}>.pkl</span>}
         </div>
         
