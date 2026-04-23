@@ -4,11 +4,21 @@ import styles from './FileUpload.module.css';
 interface FileNode {
   id: string;
   name: string;
-  type: 'directory' | 'file';
+  type: 'directory' | 'file' | 'csv';
   children?: FileNode[];
   pkl_path?: string;
   mp4_path?: string;
+  csv_path?: string;
   isLoaded?: boolean;
+}
+
+interface CsvRecord {
+  id: string;
+  name: string;
+  pkl_path: string;
+  mp4_path: string;
+  frame_count: string;
+  track_count: string;
 }
 
 interface FileUploadProps {
@@ -37,12 +47,18 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const [projects, setProjects] = useState<FileNode[]>([]);
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
+  const [selectedCsv, setSelectedCsv] = useState<FileNode | null>(null);
+  const [csvRecords, setCsvRecords] = useState<CsvRecord[]>([]);
+  const [isParsingCsv, setIsParsingCsv] = useState<boolean>(false);
   const [isFetchingProjects, setIsFetchingProjects] = useState<boolean>(false);
   
   // 搜索与历史记录状态
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedQuery, setDebouncedQuery] = useState<string>('');
   const [recentProjects, setRecentProjects] = useState<FileNode[]>([]);
+  
+  // 用于取消上一个未完成的请求
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const apiUrl = (typeof window !== 'undefined' && window.location.hostname) 
     ? `http://${window.location.hostname}:18000/api`
@@ -74,49 +90,63 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   // 当防抖查询词变化时，重新抓取
   useEffect(() => {
+    console.log(`[FileUpload] Effect Triggered: activeTab=${activeTab}, debouncedQuery="${debouncedQuery}"`);
     if (activeTab === 'server') {
-      if (debouncedQuery) {
+      if (debouncedQuery.trim()) {
         fetchLevel("", debouncedQuery);
       } else {
-        fetchLevel(""); 
+        fetchLevel(""); // 确保清空时抓取根目录
       }
     }
   }, [debouncedQuery, activeTab]);
 
   const fetchLevel = async (path: string, query: string = "") => {
+    // 取消上一个请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsFetchingProjects(true);
-    console.log(`[FileUpload] Fetching: path="${path}", query="${query}"`);
+    console.log(`[FileUpload] 🚀 发起请求: path="${path}", query="${query}"`);
     
-    // 只有在发起新搜索时才立即清空列表
-    if (query) {
+    // 如果是搜索或者是回到根目录，先清空列表以示状态切换
+    if (query || path === "") {
       setProjects([]);
     }
+
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 增加到15秒超时
 
     try {
       const url = query 
         ? `${apiUrl}/projects?query=${encodeURIComponent(query)}`
         : `${apiUrl}/projects?path=${encodeURIComponent(path)}`;
         
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
       const data = await response.json();
       
-      // 竞态检查：如果当前请求的 query 与最新的 debouncedQuery 不匹配，且不是在非搜索模式下的目录导航
-      if (query !== debouncedQuery) {
-        console.warn(`[FileUpload] Stale response ignored: "${query}" vs current "${debouncedQuery}"`);
-        return;
+      // 只要请求没被取消，且 query 匹配，就更新
+      if (query === debouncedQuery) {
+        const newItems: FileNode[] = data.projects || [];
+        if (query || path === "") {
+          setProjects(newItems);
+        } else {
+          setProjects((prev: FileNode[]) => updateChildrenInTree(prev, path, newItems));
+        }
       }
-
-      const newItems: FileNode[] = data.projects || [];
-      console.log(`[FileUpload] Received ${newItems.length} items`);
-      
-      if (query || path === "") {
-        setProjects(newItems);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('[FileUpload] ⏹️ 请求已取消或超时');
       } else {
-        setProjects((prev: FileNode[]) => updateChildrenInTree(prev, path, newItems));
+        console.error('[FileUpload] ❌ 请求异常:', error);
       }
-    } catch (error) {
-      console.error('[FileUpload] Failed to load level', error);
     } finally {
+      clearTimeout(timeoutId);
+      console.log(`[FileUpload] ✅ 状态重置`);
       setIsFetchingProjects(false);
     }
   };
@@ -146,9 +176,30 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }));
   };
 
-  const handleFileSelect = (node: FileNode) => {
-    if (node.type === 'file') {
+  const handleNodeClick = async (node: FileNode) => {
+    if (node.type === 'directory') {
+      toggleNode(node);
+    } else if (node.type === 'csv') {
+      setIsParsingCsv(true);
+      setSelectedCsv(node);
+      setSelectedFile(null); // 清空直接选择的文件
+      try {
+        const response = await fetch(`${apiUrl}/parse-csv?csv_path=${encodeURIComponent(node.csv_path || '')}`);
+        const data = await response.json();
+        if (data.records) {
+          setCsvRecords(data.records);
+        } else {
+          console.error('[FileUpload] CSV parse error:', data.error);
+        }
+      } catch (error) {
+        console.error('[FileUpload] Failed to parse CSV', error);
+      } finally {
+        setIsParsingCsv(false);
+      }
+    } else {
       setSelectedFile(node);
+      setSelectedCsv(null); // 清空 CSV 模式
+      setCsvRecords([]);
     }
   };
 
@@ -189,15 +240,23 @@ const FileUpload: React.FC<FileUploadProps> = ({
     return nodes.map((node: FileNode) => (
       <div key={node.id} className={styles.treeNode}>
         <div 
-          className={`${styles.treeHeader} ${selectedFile?.id === node.id ? styles.treeHeaderActive : ''}`}
-          onClick={() => node.type === 'directory' ? toggleNode(node) : handleFileSelect(node)}
-          title={node.id} // 鼠标悬停显示完整路径
+          className={`${styles.treeHeader} ${(selectedFile?.id === node.id || selectedCsv?.id === node.id) ? styles.treeHeaderActive : ''}`}
+          onClick={() => handleNodeClick(node)}
+          title={node.id}
         >
           <span className={styles.treeIcon}>
-            {node.type === 'directory' ? (expandedNodes[node.id] ? '📂' : '📁') : '📄'}
+            {node.type === 'directory' ? (expandedNodes[node.id] ? '📂' : '📁') : node.type === 'csv' ? '📊' : '📄'}
           </span>
           <span className={styles.nodeName}>{highlightText(node.name, debouncedQuery)}</span>
           {node.type === 'file' && <span className={styles.fileInfo}>.pkl</span>}
+          {node.type === 'csv' && (
+            <button 
+              className={styles.parseBtn} 
+              onClick={(e) => { e.stopPropagation(); handleNodeClick(node); }}
+            >
+              解析
+            </button>
+          )}
         </div>
         
         {node.type === 'directory' && expandedNodes[node.id] && node.children && (
@@ -276,10 +335,51 @@ const FileUpload: React.FC<FileUploadProps> = ({
               )}
             </div>
 
+            {/* CSV 记录列表面板 - 移出 tree 滚动区 */}
+            {(selectedCsv || isParsingCsv) && (
+              <div className={styles.csvPanel}>
+                <div className={styles.csvPanelHeader}>
+                  <span>📊 {selectedCsv?.name} {csvRecords.length > 0 ? `(共 ${csvRecords.length} 条)` : ''}</span>
+                  <button className={styles.closeBtn} onClick={() => { setSelectedCsv(null); setCsvRecords([]); }}>✕</button>
+                </div>
+                <div className={styles.csvRecordList}>
+                  {isParsingCsv ? (
+                    <div className={styles.csvLoading}>正在解析 CSV 数据...</div>
+                  ) : csvRecords.length > 0 ? (
+                    csvRecords.map((record) => (
+                      <div 
+                        key={record.id} 
+                        className={`${styles.csvRecordItem} ${selectedFile?.id === record.id ? styles.treeHeaderActive : ''}`}
+                        onClick={() => {
+                          const virtualNode: FileNode = {
+                            id: record.id,
+                            name: record.name,
+                            type: 'file',
+                            pkl_path: record.pkl_path,
+                            mp4_path: record.mp4_path
+                          };
+                          setSelectedFile(virtualNode);
+                        }}
+                      >
+                        <div style={{flex: 1}}>
+                          <div className={styles.recordName}>{record.name}</div>
+                          <div className={styles.recordInfo}>
+                            帧数: {record.frame_count}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.csvEmpty}>该 CSV 文件中未找到有效记录</div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className={styles.recentPanel}>
               <div className={styles.recentTitle}>最近播放</div>
               {recentProjects.length > 0 ? recentProjects.map(p => (
-                <div key={p.id} className={styles.recentItem} onClick={() => handleFileSelect(p)}>
+                <div key={p.id} className={styles.recentItem} onClick={() => handleNodeClick(p)}>
                   <span> {p.name.split('/').pop()}</span>
                   <span className={styles.recentPath}>{p.id}</span>
                 </div>

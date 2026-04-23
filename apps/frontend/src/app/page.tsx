@@ -103,7 +103,7 @@ export default function HomePage() {
       // 注意：这里的 /server-data 需要与后端 main.py 中 mounted 的路径一致
       // mp4Path 是相对于 outputs/ 的路径
       const baseUrl = apiUrl.replace('/api', '');
-      setVideoUrl(`${baseUrl}/server-data/${mp4Path}`);
+      // 我们不再在这里直接拼接 mp4Path，而是等待后端解析返回处理好的安全相对路径
 
       const response = await fetch(`${apiUrl}/parse-server-pkl`, {
         method: 'POST',
@@ -123,6 +123,10 @@ export default function HomePage() {
 
       const result = await response.json();
       console.log('[handleServerFileSelected] 解析成功:', result.seq_name);
+
+      if (result.relative_mp4_path) {
+        setVideoUrl(`${baseUrl}/server-data/${result.relative_mp4_path}`);
+      }
 
       setSeqName(result.seq_name || '');
       setTotalFrames(result.total_frames || 0);

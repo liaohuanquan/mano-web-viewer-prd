@@ -10,8 +10,9 @@ services:
       - ./public/model:/app/model # 挂载 MANO 模型文件
       - ${UFS_DEV_PATH:-./public/mock/synadata_dev}:/app/data/synadata_dev # 挂载 UFS 开发存储
       - ${UFS_STORAGE_PATH:-./public/mock/synadata_storage}:/app/data/synadata_storage # 挂载 UFS 数据存储
-      - /home/ubuntu/Synadata_dev/jeff/Synadata/dyn-hamr/outputs:/app/data/outputs # 挂载服务器数据
+      - /home/ubuntu/Synadata_dev/:/home/ubuntu/Synadata_dev/ # 挂载服务器数据根目录，保证绝对路径一致性
     environment:
+      - SERVER_DATA_ROOT=/home/ubuntu/Synadata_dev/
       - ENV=production
       - ALLOWED_ORIGINS=http://${HOST_IP:-localhost}:${FRONTEND_PORT:-3000},http://localhost:3000,http://localhost:18080
 

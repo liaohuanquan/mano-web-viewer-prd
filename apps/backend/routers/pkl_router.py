@@ -85,7 +85,7 @@ async def parse_pkl(
         if tmp_mp4 and os.path.exists(tmp_mp4): os.unlink(tmp_mp4)
 
 
-OUTPUTS_DIR = "/app/data/outputs"
+OUTPUTS_DIR = os.getenv("SERVER_DATA_ROOT", "/home/ubuntu/Synadata_dev/")
 
 import time
 
@@ -114,11 +114,13 @@ async def list_projects(path: str = "", query: str = ""):
         return res
         
     # 否则执行原有的按需加载逻辑
-    if path:
+    if (path):
         safe_path = path.lstrip('/')
         target_dir = os.path.abspath(os.path.join(OUTPUTS_DIR, safe_path))
     else:
         target_dir = os.path.abspath(OUTPUTS_DIR)
+    
+    print(f"[pkl_router] Scanning target_dir: {target_dir} (OUTPUTS_DIR: {OUTPUTS_DIR})")
 
     if not target_dir.startswith(os.path.abspath(OUTPUTS_DIR)) or not os.path.exists(target_dir):
         return {"projects": []}
@@ -126,10 +128,7 @@ async def list_projects(path: str = "", query: str = ""):
     tree = []
     try:
         items = sorted(os.listdir(target_dir))
-        pkls = {f[:-4]: f for f in items if f.endswith('.pkl')}
-        mp4s = [f for f in items if f.endswith('.mp4')]
-        processed_pkls = set()
-
+        # 先识别文件夹和 CSV
         for item in items:
             if item.startswith('.'): continue
             full_item_path = os.path.join(target_dir, item)
@@ -140,27 +139,67 @@ async def list_projects(path: str = "", query: str = ""):
                     "id": item_rel_path,
                     "name": item,
                     "type": "directory",
-                    "children": []
+                    "isLoaded": False
                 })
-            elif item.endswith('.pkl'):
-                base_name = item[:-4]
-                if base_name in processed_pkls: continue
-                matching_mp4 = next((f for f in mp4s if base_name in f), None)
-                if not matching_mp4 and len(mp4s) == 1:
-                    matching_mp4 = mp4s[0]
-                
-                if matching_mp4:
-                    tree.append({
-                        "id": item_rel_path,
-                        "name": base_name,
-                        "type": "file",
-                        "pkl_path": item_rel_path,
-                        "mp4_path": os.path.join(os.path.dirname(item_rel_path), matching_mp4) if os.path.dirname(item_rel_path) else matching_mp4
-                    })
-                    processed_pkls.add(base_name)
+            elif item.endswith('.csv'):
+                tree.append({
+                    "id": item_rel_path,
+                    "name": item,
+                    "type": "csv",
+                    "csv_path": item_rel_path
+                })
+        
+        # 再识别 PKL + MP4 项目对
+        pkls = {f[:-4]: f for f in items if f.endswith('.pkl')}
+        mp4s = [f for f in items if f.endswith('.mp4')]
+        for base_name, pkl_file in pkls.items():
+            matching_mp4 = next((f for f in mp4s if base_name in f), None)
+            if not matching_mp4 and len(mp4s) == 1:
+                matching_mp4 = mp4s[0]
+            
+            if matching_mp4:
+                pkl_rel_path = os.path.relpath(os.path.join(target_dir, pkl_file), OUTPUTS_DIR)
+                tree.append({
+                    "id": pkl_rel_path,
+                    "name": base_name,
+                    "type": "file",
+                    "pkl_path": pkl_rel_path,
+                    "mp4_path": os.path.relpath(os.path.join(target_dir, matching_mp4), OUTPUTS_DIR)
+                })
     except Exception as e:
         print(f"Error scanning {target_dir}: {e}")
     return {"projects": tree}
+
+@router.get("/parse-csv")
+async def parse_csv(csv_path: str):
+    """解析选中的 CSV 文件并返回记录列表"""
+    full_path = os.path.join(OUTPUTS_DIR, csv_path.lstrip('/'))
+    if not os.path.exists(full_path) or not csv_path.endswith('.csv'):
+        return {"error": "CSV file not found", "records": []}
+    
+    import csv
+    records = []
+    try:
+        with open(full_path, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                pkl = row.get('pkl_path')
+                # 兼容多种可能的视频路径列名
+                mp4 = row.get('source_path') or row.get('mp4_path') or row.get('video_path')
+                
+                if pkl and mp4:
+                    records.append({
+                        "id": f"{csv_path}#{i}",
+                        "name": row.get('seq_name') or f"Record {i+1}",
+                        "pkl_path": pkl,
+                        "mp4_path": mp4,
+                        "frame_count": row.get('frame_count', 'N/A'),
+                        "track_count": row.get('track_count', 'N/A')
+                    })
+    except Exception as e:
+        return {"error": f"Failed to parse CSV: {str(e)}", "records": []}
+        
+    return {"records": records}
 
 async def search_projects_globally(query: str):
     """在服务器 outputs 目录下执行全局模糊搜索"""
@@ -169,9 +208,22 @@ async def search_projects_globally(query: str):
     count = 0
     # 限制搜索最大深度和结果数量以保证性能
     for root, dirs, files in os.walk(OUTPUTS_DIR):
-        # 限制深度或结果数
-        if count > 50: break 
+        if count > 200: break # 服务器性能较好，限制可适当放宽
         
+        # 搜索 CSV
+        csvs = [f for f in files if f.endswith('.csv') and query in f.lower()]
+        for csv_file in csvs:
+            rel_root = os.path.relpath(root, OUTPUTS_DIR)
+            csv_rel_path = os.path.join(rel_root, csv_file) if rel_root != "." else csv_file
+            results.append({
+                "id": csv_rel_path,
+                "name": csv_file,
+                "type": "csv",
+                "csv_path": csv_rel_path
+            })
+            count += 1
+
+        # 搜索项目对
         pkls = [f for f in files if f.endswith('.pkl') and query in f.lower()]
         mp4s = [f for f in files if f.endswith('.mp4')]
         
@@ -204,11 +256,13 @@ class ParseServerPklRequest(BaseModel):
 @router.post("/parse-server-pkl")
 async def parse_server_pkl(req: ParseServerPklRequest):
     """解析服务器上的 PKL 文件并验证帧数"""
-    full_pkl_path = os.path.join(OUTPUTS_DIR, req.pkl_path)
-    full_mp4_path = os.path.join(OUTPUTS_DIR, req.mp4_path)
+    # 统一转换路径，确保绝对路径和相对路径都能被正确处理
+    full_pkl_path = req.pkl_path if os.path.isabs(req.pkl_path) else os.path.join(OUTPUTS_DIR, req.pkl_path.lstrip('/'))
+    full_mp4_path = req.mp4_path if os.path.isabs(req.mp4_path) else os.path.join(OUTPUTS_DIR, req.mp4_path.lstrip('/'))
     
-    if not os.path.normpath(full_pkl_path).startswith(OUTPUTS_DIR) or \
-       not os.path.normpath(full_mp4_path).startswith(OUTPUTS_DIR):
+    norm_out_dir = os.path.normpath(OUTPUTS_DIR)
+    if not os.path.normpath(full_pkl_path).startswith(norm_out_dir) or \
+       not os.path.normpath(full_mp4_path).startswith(norm_out_dir):
         raise HTTPException(status_code=403, detail="Invalid path")
         
     if not os.path.exists(full_pkl_path):
@@ -235,4 +289,12 @@ async def parse_server_pkl(req: ParseServerPklRequest):
             detail=f"数据帧数不匹配! PKL 为 {pkl_frames} 帧，而视频为 {video_frames} 帧。这可能不是同一个序列。"
         )
 
-    return result
+    rel_mp4 = os.path.relpath(full_mp4_path, OUTPUTS_DIR)
+
+    return {
+        "seq_name": data.get("seq_name", "Unknown"),
+        "total_frames": pkl_frames,
+        "tracks": result.get("tracks", []),
+        "faces": result.get("faces", []),
+        "relative_mp4_path": rel_mp4
+    }

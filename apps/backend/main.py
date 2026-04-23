@@ -24,15 +24,17 @@ allowed_origins = os.getenv(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["*"], # 开发阶段允许所有来源，防止 IP 访问被拦截
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # 挂载服务器目录用于读取文件（如 mp4）
-OUTPUTS_DIR = "/app/data/outputs"
-app.mount("/server-data", StaticFiles(directory=OUTPUTS_DIR), name="server-data")
+SERVER_DATA_ROOT = os.getenv("SERVER_DATA_ROOT", "/home/ubuntu/Synadata_dev/")
+if not os.path.exists(SERVER_DATA_ROOT):
+    os.makedirs(SERVER_DATA_ROOT, exist_ok=True)
+app.mount("/server-data", StaticFiles(directory=SERVER_DATA_ROOT), name="server-data")
 
 # 注册路由
 app.include_router(pkl_router, prefix="/api")
