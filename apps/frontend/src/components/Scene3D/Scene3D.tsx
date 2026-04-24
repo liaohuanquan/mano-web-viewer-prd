@@ -37,6 +37,27 @@ function Ground() {
   );
 }
 
+/**
+ * 数据坐标中的相机标记
+ * 用小坐标轴 + 锥体表示相机位置与朝向
+ */
+function DataCameraMarker({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <axesHelper args={[0.18]} />
+      <mesh position={[0, 0, 0.06]}>
+        <sphereGeometry args={[0.015, 12, 12]} />
+        <meshStandardMaterial color="#ffd166" emissive="#6b5310" emissiveIntensity={0.7} />
+      </mesh>
+      {/* OpenCV 前向通常为 +Z；当前场景做了 z 反向，因此锥体朝向 -Z */}
+      <mesh position={[0, 0, -0.09]} rotation={[-Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.06, 0.18, 24, 1, true]} />
+        <meshStandardMaterial color="#ffd166" wireframe transparent opacity={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
 const ManoMesh = React.memo(({
   position,
   color,
@@ -103,20 +124,9 @@ export default function Scene3D({
   faces,
   interpolationEnabled = false 
 }: Scene3DProps) {
-  // 计算基础偏移量。OpenCV 坐标系以相机光心为原点，手往往在Z轴远处（例如 Z=2.5m）
-  // 导致放在 Threejs 中心时偏离网格中心。我们提取出第一帧的手部位置将它拉回原点附近
-  const centerOffset = useMemo((): [number, number, number] => {
-    if (!tracks || tracks.length === 0) return [0, 0, 0];
-    
-    // 寻找整个序列中第一个出现的有效坐标作为偏移基准
-    const firstValidTrack = tracks.find(t => t.cam_trans.some(p => p[0] !== 0 || p[1] !== 0 || p[2] !== 0));
-    if (!firstValidTrack) return [0, 0, 0];
+  // 完全使用原始相机坐标作为 3D 世界坐标
+  // 此时 (0,0,0) 即为 PKL 数据中的相机光心位置
 
-    const firstValidPos = firstValidTrack.cam_trans.find(p => p[0] !== 0 || p[1] !== 0 || p[2] !== 0);
-    if (!firstValidPos) return [0, 0, 0];
-
-    return [firstValidPos[0], -firstValidPos[1], -firstValidPos[2]];
-  }, [tracks]);
 
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
 
@@ -127,9 +137,17 @@ export default function Scene3D({
     }
   };
 
-  // 打印调试信息
+  // 打印当前帧手部原始坐标
   useEffect(() => {
-    // 仅在调试时检查数据
+    tracks.forEach(track => {
+      const frameInt = Math.floor(currentFrame);
+      const pos = track.cam_trans?.[frameInt];
+      // 过滤掉无效坐标 [0,0,0]
+      if (pos && (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0)) {
+        const isRight = track.is_right[frameInt] === 1;
+        console.log(`[Scene3D] 帧 ${frameInt} - ${isRight ? '右手' : '左手'} 原始坐标:`, pos);
+      }
+    });
   }, [currentFrame, tracks]);
 
   return (
@@ -166,6 +184,9 @@ export default function Scene3D({
         {/* 网格地面 */}
         <Ground />
 
+        {/* 数据相机位置标记：PKL 数据原点 (0,0,0) */}
+        <DataCameraMarker position={[0, 0, 0]} />
+
         {/* 动态手部渲染 */}
         {tracks.map((track) => {
           const totalTrackFrames = track.cam_trans?.length || 0;
@@ -182,11 +203,11 @@ export default function Scene3D({
           
           if (!p1 || !p2 || (p1[0] === 0 && p1[1] === 0 && p1[2] === 0)) return null;
 
-          // 线性插值坐标
+          // 直接使用相机坐标（OpenCV -> Three.js: Y, Z 翻转）
           const interpolatedPos: [number, number, number] = [
-            (p1[0] + (p2[0] - p1[0]) * alpha) - centerOffset[0],
-            -(p1[1] + (p2[1] - p1[1]) * alpha) - centerOffset[1] + 0.1,
-            -(p1[2] + (p2[2] - p1[2]) * alpha) - centerOffset[2],
+            (p1[0] + (p2[0] - p1[0]) * alpha),
+            -(p1[1] + (p2[1] - p1[1]) * alpha),
+            -(p1[2] + (p2[2] - p1[2]) * alpha),
           ];
 
           // 颜色与左右手设置

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import FileUpload from '@/components/FileUpload/FileUpload';
 import PlayerControls from '@/components/PlayerControls/PlayerControls';
@@ -20,6 +21,15 @@ const Scene3D = dynamic(
  * 集成文件上传、2D/3D 视图、播放控制
  */
 export default function HomePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+function HomePageContent() {
+  const searchParams = useSearchParams();
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -142,6 +152,26 @@ export default function HomePage() {
       setVideoUrl(null);
     }
   }, []);
+  
+  /** 检查并处理 URL 参数中的自动加载请求 */
+  useEffect(() => {
+    const pkl = searchParams.get('pkl');
+    const mp4 = searchParams.get('mp4');
+    
+    if (pkl && mp4 && loadingState === 'idle') {
+      console.log('[HomePage] 检测到 URL 参数，执行自动加载:', { pkl, mp4 });
+      handleServerFileSelected(pkl, mp4);
+    }
+  }, [searchParams, handleServerFileSelected, loadingState]);
+
+  /** 处理文件选择提交（打开新标签页） */
+  const handleOpenInNewTab = useCallback((pklPath: string, mp4Path: string) => {
+    const params = new URLSearchParams();
+    params.set('pkl', pklPath);
+    params.set('mp4', mp4Path);
+    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    window.open(url, '_blank');
+  }, []);
 
   /** 重新选择文件 */
   const handleReset = useCallback(() => {
@@ -155,7 +185,21 @@ export default function HomePage() {
     setFaces([]);
     setError(null);
     setLoadingState('idle');
+    // 清除 URL 参数
+    const url = new URL(window.location.href);
+    url.searchParams.delete('pkl');
+    url.searchParams.delete('mp4');
+    window.history.replaceState({}, '', url.toString());
   }, [videoUrl]);
+
+  /** 同步网页标题 */
+  useEffect(() => {
+    if (isReady && seqName) {
+      document.title = `${seqName} | MANO Web Viewer`;
+    } else {
+      document.title = 'MANO Web Viewer | 手部可视化工具';
+    }
+  }, [isReady, seqName]);
 
   /** 头部信息 */
   const headerInfoText = useMemo(() => {
@@ -197,7 +241,7 @@ export default function HomePage() {
           <div className={styles.emptyState}>
             <FileUpload
               onLocalFilesSelected={handleFilesSelected}
-              onServerFileSelected={handleServerFileSelected}
+              onServerFileSelected={handleOpenInNewTab}
               isLoading={isLoading}
             />
           </div>
