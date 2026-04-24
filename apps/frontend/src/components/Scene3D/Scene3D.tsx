@@ -139,15 +139,15 @@ export default function Scene3D({
 
   // 打印当前帧手部原始坐标
   useEffect(() => {
-    tracks.forEach(track => {
-      const frameInt = Math.floor(currentFrame);
-      const pos = track.cam_trans?.[frameInt];
-      // 过滤掉无效坐标 [0,0,0]
-      if (pos && (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0)) {
-        const isRight = track.is_right[frameInt] === 1;
-        console.log(`[Scene3D] 帧 ${frameInt} - ${isRight ? '右手' : '左手'} 原始坐标:`, pos);
-      }
-    });
+    // tracks.forEach(track => {
+    //   const frameInt = Math.floor(currentFrame);
+    //   const pos = track.cam_trans?.[frameInt];
+    //   // 过滤掉无效坐标 [0,0,0]
+    //   if (pos && (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0)) {
+    //     const isRight = track.is_right[frameInt] === 1;
+    //     console.log(`[Scene3D] 帧 ${frameInt} - ${isRight ? '右手' : '左手'} 原始坐标:`, pos);
+    //   }
+    // });
   }, [currentFrame, tracks]);
 
   return (
