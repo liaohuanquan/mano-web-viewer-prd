@@ -15,6 +15,8 @@ interface PlayerControlsProps {
   onSeek: (frame: number) => void;
   interpolationEnabled: boolean;
   onToggleInterpolation: () => void;
+  rotation: number;
+  onRotate: () => void;
 }
 
 /**
@@ -33,6 +35,8 @@ export default function PlayerControls({
   onSeek,
   interpolationEnabled,
   onToggleInterpolation,
+  rotation,
+  onRotate,
 }: PlayerControlsProps) {
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -108,6 +112,15 @@ export default function PlayerControls({
           title={interpolationEnabled ? '关闭插值' : '开启插值'}
         >
           {interpolationEnabled ? '插值' : '离散'}
+        </button>
+
+        <button
+          className={styles.toggleBtn}
+          onClick={onRotate}
+          title={`当前旋转: ${rotation}°`}
+          style={{ width: 'auto', minWidth: '60px' }}
+        >
+          🔄 {rotation}°
         </button>
       </div>
 

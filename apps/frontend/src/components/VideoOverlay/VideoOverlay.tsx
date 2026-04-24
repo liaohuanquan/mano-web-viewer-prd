@@ -25,6 +25,8 @@ interface VideoOverlayProps {
   faces?: number[][];
   /** 是否开启插值 */
   interpolationEnabled?: boolean;
+  /** 旋转角度 */
+  rotation?: number;
 }
 
 /**
@@ -42,6 +44,7 @@ export default function VideoOverlay({
   tracks = [],
   faces = [],
   interpolationEnabled = false,
+  rotation = 0,
 }: VideoOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -226,28 +229,43 @@ export default function VideoOverlay({
 
   return (
     <div ref={containerRef} className={styles.container}>
-      <video
-        ref={videoRef}
-        className={styles.video}
-        src={videoUrl}
-        muted
-        playsInline
-        autoPlay
-        preload="auto"
-        onLoadedMetadata={handleVideoResize}
-        onResize={handleVideoResize}
-        onEnded={handleVideoEnded}
+      <div 
+        className={styles.rotationWrapper}
         style={{ 
-          transform: 'translateZ(0)', 
-          willChange: 'transform',
-          backfaceVisibility: 'hidden'
+          transform: `rotate(${rotation}deg)`,
+          // 如果是 90/270 度，可能需要对容器进行缩放以适应原本的宽高比，
+          // 但这里我们先让它居中并允许溢出（由外部 viewContainer 裁剪或由 object-fit 处理）
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative'
         }}
-      />
-      {/* 2D overlay Canvas */}
-      <canvas
-        ref={canvasRef}
-        className={styles.overlayCanvas}
-      />
+      >
+        <video
+          ref={videoRef}
+          className={styles.video}
+          src={videoUrl}
+          muted
+          playsInline
+          autoPlay
+          preload="auto"
+          onLoadedMetadata={handleVideoResize}
+          onResize={handleVideoResize}
+          onEnded={handleVideoEnded}
+          style={{ 
+            transform: 'translateZ(0)', 
+            willChange: 'transform',
+            backfaceVisibility: 'hidden'
+          }}
+        />
+        {/* 2D overlay Canvas */}
+        <canvas
+          ref={canvasRef}
+          className={styles.overlayCanvas}
+        />
+      </div>
     </div>
   );
 }
