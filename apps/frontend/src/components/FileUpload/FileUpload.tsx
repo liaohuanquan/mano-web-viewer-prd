@@ -378,17 +378,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
               </div>
             )}
 
-            <div className={styles.recentPanel}>
-              <div className={styles.recentTitle}>最近播放</div>
-              {recentProjects.length > 0 ? recentProjects.map(p => (
-                <div key={p.id} className={styles.recentItem} onClick={() => handleNodeClick(p)}>
-                  <span> {p.name.split('/').pop()}</span>
-                  <span className={styles.recentPath}>{p.id}</span>
-                </div>
-              )) : (
-                <div className={styles.noProjects} style={{padding: '10px 0'}}>暂无记录</div>
-              )}
-            </div>
+            {!(selectedCsv || isParsingCsv) && (
+              <div className={styles.recentPanel}>
+                <div className={styles.recentTitle}>最近播放</div>
+                {recentProjects.length > 0 ? recentProjects.map(p => (
+                  <div key={p.id} className={styles.recentItem} onClick={() => handleNodeClick(p)}>
+                    <span> {p.name.split('/').pop()}</span>
+                    <span className={styles.recentPath}>{p.id}</span>
+                  </div>
+                )) : (
+                  <div className={styles.noProjects} style={{padding: '10px 0'}}>暂无记录</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
