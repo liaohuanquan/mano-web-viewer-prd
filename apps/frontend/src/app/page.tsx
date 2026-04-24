@@ -38,7 +38,6 @@ function HomePageContent() {
   const [seqName, setSeqName] = useState<string>('');
   const [tracks, setTracks] = useState<ManoTrack[]>([]);
   const [faces, setFaces] = useState<number[][]>([]);
-  const [videoRotation, setVideoRotation] = useState(0); // 旋转角度：0, 90, 180, 270
 
   const player = usePlayer({ 
     totalFrames, 
@@ -188,7 +187,6 @@ function HomePageContent() {
     setFaces([]);
     setError(null);
     setLoadingState('idle');
-    setVideoRotation(0);
     // 清除 URL 参数
     const url = new URL(window.location.href);
     url.searchParams.delete('pkl');
@@ -280,7 +278,6 @@ function HomePageContent() {
                     tracks={tracks}
                     faces={faces}
                     interpolationEnabled={player.interpolationEnabled}
-                    rotation={videoRotation}
                   />
                 )}
               </div>
@@ -317,8 +314,6 @@ function HomePageContent() {
             onSeek={player.seek}
             interpolationEnabled={player.interpolationEnabled}
             onToggleInterpolation={() => player.setInterpolationEnabled(!player.interpolationEnabled)}
-            rotation={videoRotation}
-            onRotate={() => setVideoRotation((r) => (r + 90) % 360)}
           />
         </div>
       )}
