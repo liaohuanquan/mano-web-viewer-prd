@@ -32,7 +32,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   onServerFileSelected,
   isLoading = false 
 }) => {
-  const [activeTab, setActiveTab] = useState<'local' | 'server'>('local');
+  const [activeTab, setActiveTab] = useState<'local' | 'server'>('server');
   
   // 本地上传状态
   const [pklFile, setPklFile] = useState<File | null>(null);
