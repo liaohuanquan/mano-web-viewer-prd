@@ -271,7 +271,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   return (
     <div className={styles.uploadContainer}>
       <h2 className={styles.uploadTitle}>MANO Web Viewer</h2>
-      <p className={styles.uploadSubtitle}>选择或搜索服务器上的项目开始分析</p>
+      <p className={styles.uploadSubtitle}>选择服务器上的项目开始分析</p>
 
       <div className={styles.tabs}>
         <button className={`${styles.tab} ${activeTab === 'local' ? styles.tabActive : ''}`} onClick={() => setActiveTab('local')}>本地上传</button>
@@ -300,6 +300,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         </div>
       ) : (
         <div style={{width: '100%'}}>
+          {/* 暂时注释搜索工具栏
           <div className={styles.toolbar}>
             <input 
               type="text" 
@@ -323,6 +324,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
               🔄
             </button>
           </div>
+          */}
           
           <div className={styles.explorerWrapper}>
             <div className={styles.serverExplorer}>
