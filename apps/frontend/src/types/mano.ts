@@ -55,4 +55,4 @@ export interface PlayerState {
 }
 
 /** 加载状态 */
-export type LoadingState = 'idle' | 'uploading' | 'parsing' | 'ready' | 'error';
+export type LoadingState = 'idle' | 'uploading' | 'parsing' | 'rendering' | 'ready' | 'error';

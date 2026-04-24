@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import FileUpload from '@/components/FileUpload/FileUpload';
 import PlayerControls from '@/components/PlayerControls/PlayerControls';
 import VideoOverlay from '@/components/VideoOverlay/VideoOverlay';
+import LoadingOverlay from '@/components/LoadingOverlay/LoadingOverlay';
 import { usePlayer } from '@/hooks/usePlayer';
 import type { LoadingState, ManoTrack } from '@/types/mano';
 import styles from './page.module.css';
@@ -47,7 +48,8 @@ function HomePageContent() {
   /** 是否处于文件选择阶段 */
   const isUploadPhase = loadingState === 'idle' || loadingState === 'error';
   const isLoading = loadingState === 'uploading' || loadingState === 'parsing';
-  const isReady = loadingState === 'ready';
+  const isRendering = loadingState === 'rendering';
+  const isReady = loadingState === 'ready' || loadingState === 'rendering'; // 渲染阶段也允许布局显示，但会被遮罩
 
   /** 处理文件选择提交 */
   const handleFilesSelected = useCallback(async (pklFile: File, mp4File: File) => {
@@ -85,7 +87,7 @@ function HomePageContent() {
       setTotalFrames(result.total_frames || 0);
       setTracks(result.tracks || []);
       setFaces(result.faces || []);
-      setLoadingState('ready');
+      setLoadingState('rendering');
 
     } catch (err) {
       const message = err instanceof Error ? err.message : '未知错误';
@@ -142,7 +144,7 @@ function HomePageContent() {
       setTotalFrames(result.total_frames || 0);
       setTracks(result.tracks || []);
       setFaces(result.faces || []);
-      setLoadingState('ready');
+      setLoadingState('rendering');
 
     } catch (err) {
       const message = err instanceof Error ? err.message : '未知错误';
@@ -207,8 +209,20 @@ function HomePageContent() {
     return '';
   }, [isReady, seqName]);
 
+  /** 处理渲染阶段结束 */
+  useEffect(() => {
+    if (loadingState === 'rendering') {
+      const timer = setTimeout(() => {
+        setLoadingState('ready');
+      }, 1500); // 模拟前端 3D 资源初始化时间
+      return () => clearTimeout(timer);
+    }
+  }, [loadingState]);
+
   return (
     <div className={styles.container}>
+      {/* 全局加载遮罩 */}
+      <LoadingOverlay state={loadingState} />
       {/* 顶部标题栏 */}
       <header className={styles.header}>
         <h1 className={styles.headerTitle}>MANO Web Viewer</h1>
