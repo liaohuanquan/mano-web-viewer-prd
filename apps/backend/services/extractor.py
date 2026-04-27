@@ -27,8 +27,9 @@ def extract_track_data(data: dict) -> dict:
         betas = np.asarray(track["betas"], dtype=np.float32)
         global_orient = np.asarray(track["global_orient"], dtype=np.float32)
         
-        # 初始化顶点数组 [T, 778, 3]
+        # 初始化顶点数组 [T, 778, 3] 和关节点数组 [T, 16, 3]
         verts = np.zeros((T, 778, 3), dtype=np.float32)
+        joints = np.zeros((T, 16, 3), dtype=np.float32)
         
         # 如果模型就绪，则进行重建
         if mano_builder.is_ready:
@@ -36,20 +37,21 @@ def extract_track_data(data: dict) -> dict:
                 # 如果这个 frame 根本没有手（比如全零或者被过滤了） 这里可以用 cam_trans 来简单过滤
                 if np.sum(np.abs(cam_trans[t])) == 0:
                     continue
-                v = mano_builder.build_verts(
+                result = mano_builder.build_verts(
                     is_right=(is_right[t] == 1),
                     body_pose=body_pose[t],
                     betas=betas[t],
                     global_orient=global_orient[t]
                 )
-                if v is not None:
-                    verts[t] = v
+                if result is not None:
+                    verts[t], joints[t] = result
         
         tracks_out.append({
             "track_id": int(track_id),
             "cam_trans": cam_trans.tolist(),
             "is_right": is_right.tolist(),
             "verts": verts.tolist(),
+            "joints": joints.tolist(),
         })
 
     result = {

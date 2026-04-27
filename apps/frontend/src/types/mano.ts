@@ -13,6 +13,8 @@ export interface ManoTrack {
   is_right: number[];
   /** 每帧的顶点数据 (可选) */
   verts?: number[][][];
+  /** 每帧的关节点数据 (可选, 16个关节点) */
+  joints?: number[][][];
 }
 
 /** PKL 解析后的完整数据 */

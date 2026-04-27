@@ -73,8 +73,11 @@ class ManoBuilder:
                     betas=betas_tensor
                 )
                 
-            # 返回 numpy 数组，格式为 (778, 3)
-            return output.vertices.cpu().numpy()[0]
+            # 返回 (顶点, 关节点) 元组
+            # vertices: (778, 3), joints: (16, 3)
+            verts = output.vertices.cpu().numpy()[0]
+            joints = output.joints.cpu().numpy()[0]
+            return verts, joints
         except Exception as e:
             print(f"[ManoBuilder] 重建失败: {e}")
             return None

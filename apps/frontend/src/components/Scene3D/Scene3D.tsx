@@ -113,6 +113,105 @@ const ManoMesh = React.memo(({
 
 ManoMesh.displayName = "ManoMesh";
 
+/** MANO 关节索引常量 */
+const JOINT_WRIST = 0;
+const JOINT_MIDDLE1 = 4; // 中指MCP关节（第一排指关节）
+
+/**
+ * 计算第一帧手部位置作为世界坐标原点偏移量
+ * 取第一个有效帧的 cam_trans 作为原点
+ */
+function computeOriginOffset(tracks: ManoTrack[]): [number, number, number] {
+  for (const track of tracks) {
+    if (!track.cam_trans || track.cam_trans.length === 0) continue;
+    const pos = track.cam_trans[0];
+    if (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0) {
+      // OpenCV -> Three.js 坐标转换 (Y, Z 翻转)
+      return [pos[0], -pos[1], -pos[2]];
+    }
+  }
+  return [0, 0, 0];
+}
+
+/**
+ * 计算 3D 空间中两点距离（米），转换为 cm
+ */
+function distance3D(a: [number, number, number], b: [number, number, number]): number {
+  const dx = a[0] - b[0];
+  const dy = a[1] - b[1];
+  const dz = a[2] - b[2];
+  return Math.sqrt(dx * dx + dy * dy + dz * dz) * 100; // 米转厘米
+}
+
+/**
+ * 计算当前帧的测量数据
+ */
+function computeMetrics(
+  tracks: ManoTrack[],
+  currentFrame: number,
+  interpolationEnabled: boolean,
+) {
+  const frameInt = Math.floor(currentFrame);
+  const alpha = interpolationEnabled ? (currentFrame % 1) : 0;
+
+  let leftCamDist: number | null = null;
+  let rightCamDist: number | null = null;
+  let leftBackLen: number | null = null;
+  let rightBackLen: number | null = null;
+
+  // 相机在原始坐标系中位于 (0,0,0)
+  const camPos: [number, number, number] = [0, 0, 0];
+
+  for (const track of tracks) {
+    const totalFrames = track.cam_trans?.length || 0;
+    if (totalFrames === 0) continue;
+    const frameNext = Math.min(totalFrames - 1, frameInt + 1);
+
+    const p1 = track.cam_trans?.[frameInt];
+    const p2 = track.cam_trans?.[frameNext];
+    if (!p1 || !p2 || (p1[0] === 0 && p1[1] === 0 && p1[2] === 0)) continue;
+
+    // 手根部(cam_trans)在原始坐标系中的位置
+    const handRoot: [number, number, number] = [
+      p1[0] + (p2[0] - p1[0]) * alpha,
+      p1[1] + (p2[1] - p1[1]) * alpha,
+      p1[2] + (p2[2] - p1[2]) * alpha,
+    ];
+
+    // 相机到手根部距离
+    const dist = distance3D(camPos, handRoot);
+
+    // 手背长度：手腕(joint 0) 到 中指MCP(joint 4) 的距离
+    let backLen: number | null = null;
+    const j1 = track.joints?.[frameInt];
+    const j2 = track.joints?.[frameNext];
+    if (j1 && j2 && j1.length >= 16 && j2.length >= 16) {
+      const wrist = [
+        j1[JOINT_WRIST][0] + (j2[JOINT_WRIST][0] - j1[JOINT_WRIST][0]) * alpha,
+        j1[JOINT_WRIST][1] + (j2[JOINT_WRIST][1] - j1[JOINT_WRIST][1]) * alpha,
+        j1[JOINT_WRIST][2] + (j2[JOINT_WRIST][2] - j1[JOINT_WRIST][2]) * alpha,
+      ] as [number, number, number];
+      const mcp = [
+        j1[JOINT_MIDDLE1][0] + (j2[JOINT_MIDDLE1][0] - j1[JOINT_MIDDLE1][0]) * alpha,
+        j1[JOINT_MIDDLE1][1] + (j2[JOINT_MIDDLE1][1] - j1[JOINT_MIDDLE1][1]) * alpha,
+        j1[JOINT_MIDDLE1][2] + (j2[JOINT_MIDDLE1][2] - j1[JOINT_MIDDLE1][2]) * alpha,
+      ] as [number, number, number];
+      backLen = distance3D(wrist, mcp);
+    }
+
+    const isRight = track.is_right[frameInt] === 1;
+    if (isRight) {
+      rightCamDist = dist;
+      rightBackLen = backLen;
+    } else {
+      leftCamDist = dist;
+      leftBackLen = backLen;
+    }
+  }
+
+  return { leftCamDist, rightCamDist, leftBackLen, rightBackLen };
+}
+
 /**
  * 3D 视图组件
  * 使用 React Three Fiber 渲染手部 3D mesh
@@ -124,9 +223,8 @@ export default function Scene3D({
   faces,
   interpolationEnabled = false 
 }: Scene3DProps) {
-  // 完全使用原始相机坐标作为 3D 世界坐标
-  // 此时 (0,0,0) 即为 PKL 数据中的相机光心位置
-
+  // 以第一帧手部位置作为世界坐标原点
+  const originOffset = useMemo(() => computeOriginOffset(tracks), [tracks]);
 
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
 
@@ -137,18 +235,21 @@ export default function Scene3D({
     }
   };
 
-  // 打印当前帧手部原始坐标
-  useEffect(() => {
-    // tracks.forEach(track => {
-    //   const frameInt = Math.floor(currentFrame);
-    //   const pos = track.cam_trans?.[frameInt];
-    //   // 过滤掉无效坐标 [0,0,0]
-    //   if (pos && (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0)) {
-    //     const isRight = track.is_right[frameInt] === 1;
-    //     console.log(`[Scene3D] 帧 ${frameInt} - ${isRight ? '右手' : '左手'} 原始坐标:`, pos);
-    //   }
-    // });
-  }, [currentFrame, tracks]);
+  // 计算相机在新坐标系下的位置（原始相机在 0,0,0，减去原点偏移）
+  const dataCameraPos: [number, number, number] = useMemo(() => [
+    -originOffset[0],
+    -originOffset[1],
+    -originOffset[2],
+  ], [originOffset]);
+
+  // 计算当前帧的测量数据
+  const metrics = useMemo(
+    () => computeMetrics(tracks, currentFrame, interpolationEnabled),
+    [tracks, currentFrame, interpolationEnabled]
+  );
+
+  /** 格式化数值显示 */
+  const fmt = (v: number | null) => v !== null ? v.toFixed(1) : '--';
 
   return (
     <div className={styles.container}>
@@ -157,6 +258,28 @@ export default function Scene3D({
       <button className={styles.resetButton} onClick={handleResetView}>
         重置视角
       </button>
+
+      {/* 测量数据面板 */}
+      <div className={styles.metricsPanel}>
+        <div className={styles.metricsTitle}>测量数据</div>
+        <div className={styles.metricsRow}>
+          <span className={styles.metricsLabel}>📷↔🤚 左手距离</span>
+          <span className={styles.metricsValue}>{fmt(metrics.leftCamDist)} cm</span>
+        </div>
+        <div className={styles.metricsRow}>
+          <span className={styles.metricsLabel}>📷↔✋ 右手距离</span>
+          <span className={styles.metricsValue}>{fmt(metrics.rightCamDist)} cm</span>
+        </div>
+        <div className={styles.metricsDivider} />
+        <div className={styles.metricsRow}>
+          <span className={styles.metricsLabel}>🤚 左手背长</span>
+          <span className={styles.metricsValue}>{fmt(metrics.leftBackLen)} cm</span>
+        </div>
+        <div className={styles.metricsRow}>
+          <span className={styles.metricsLabel}>✋ 右手背长</span>
+          <span className={styles.metricsValue}>{fmt(metrics.rightBackLen)} cm</span>
+        </div>
+      </div>
 
       <Canvas
         camera={{
@@ -178,14 +301,14 @@ export default function Scene3D({
         <directionalLight position={[2, 3, 2]} intensity={0.8} />
         <directionalLight position={[-2, 1, -1]} intensity={0.3} />
 
-        {/* 坐标轴 */}
+        {/* 坐标轴（世界原点 = 第一帧手部位置） */}
         <CameraAxes />
 
         {/* 网格地面 */}
         <Ground />
 
-        {/* 数据相机位置标记：PKL 数据原点 (0,0,0) */}
-        <DataCameraMarker position={[0, 0, 0]} />
+        {/* 数据相机位置标记：相对于新世界原点的偏移位置 */}
+        <DataCameraMarker position={dataCameraPos} />
 
         {/* 动态手部渲染 */}
         {tracks.map((track) => {
@@ -203,11 +326,11 @@ export default function Scene3D({
           
           if (!p1 || !p2 || (p1[0] === 0 && p1[1] === 0 && p1[2] === 0)) return null;
 
-          // 直接使用相机坐标（OpenCV -> Three.js: Y, Z 翻转）
+          // 相机坐标 -> Three.js 坐标（Y, Z 翻转），再减去原点偏移
           const interpolatedPos: [number, number, number] = [
-            (p1[0] + (p2[0] - p1[0]) * alpha),
-            -(p1[1] + (p2[1] - p1[1]) * alpha),
-            -(p1[2] + (p2[2] - p1[2]) * alpha),
+            (p1[0] + (p2[0] - p1[0]) * alpha) - originOffset[0],
+            -(p1[1] + (p2[1] - p1[1]) * alpha) - originOffset[1],
+            -(p1[2] + (p2[2] - p1[2]) * alpha) - originOffset[2],
           ];
 
           // 颜色与左右手设置
