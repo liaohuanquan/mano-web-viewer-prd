@@ -69,10 +69,12 @@ function HomePageContent() {
 
       setLoadingState('parsing');
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-        ((typeof window !== 'undefined' && window.location.hostname) 
-          ? `http://${window.location.hostname}:18000/api`
-          : 'http://localhost:18000/api');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || (() => {
+        if (typeof window === 'undefined') return 'http://localhost:18000/api';
+        const { hostname, port } = window.location;
+        const backendPort = port === '18081' ? '18001' : '18000';
+        return `http://${hostname}:${backendPort}/api`;
+      })();
       const response = await fetch(`${apiUrl}/parse-pkl`, {
         method: 'POST',
         body: formData,
@@ -112,10 +114,12 @@ function HomePageContent() {
     setLoadingState('parsing');
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-        ((typeof window !== 'undefined' && window.location.hostname) 
-          ? `http://${window.location.hostname}:18000/api`
-          : 'http://localhost:18000/api');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || (() => {
+        if (typeof window === 'undefined') return 'http://localhost:18000/api';
+        const { hostname, port } = window.location;
+        const backendPort = port === '18081' ? '18001' : '18000';
+        return `http://${hostname}:${backendPort}/api`;
+      })();
       
       // 构建服务器静态文件的 URL
       // 注意：这里的 /server-data 需要与后端 main.py 中 mounted 的路径一致

@@ -60,10 +60,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
   // 用于取消上一个未完成的请求
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 
-    ((typeof window !== 'undefined' && window.location.hostname) 
-      ? `http://${window.location.hostname}:18000/api`
-      : 'http://localhost:18000/api');
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || (() => {
+    if (typeof window === 'undefined') return 'http://localhost:18000/api';
+    const { hostname, port } = window.location;
+    // 智能推断：如果是测试环境端口 18081，则后端使用 18001
+    const backendPort = port === '18081' ? '18001' : '18000';
+    return `http://${hostname}:${backendPort}/api`;
+  })();
 
   // 初始化历史记录
   useEffect(() => {
