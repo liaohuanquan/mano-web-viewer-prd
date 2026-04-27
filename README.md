@@ -58,29 +58,20 @@ uvicorn main:app --reload --port 8000
 
 您可以根据服务器 IP 修改文件中的 `HOST_IP` 和 `NEXT_PUBLIC_API_URL`。
 
-#### 2. 一键部署脚本
+#### 2. 一键部署/停止脚本
 
 推荐使用提供的部署脚本，它会自动处理环境变量加载并隔离容器组（使用不同的项目名称）。
 
 **Linux 环境：**
 
 ```bash
-# 部署测试环境
-chmod +x deploy.sh
-./deploy.sh test
+# 启动/更新环境
+./deploy.sh test  # 测试环境
+./deploy.sh prod  # 生产环境
 
-# 部署生产环境
-./deploy.sh prod
-```
-
-**Windows (PowerShell) 环境：**
-
-```powershell
-# 部署测试环境
-./deploy.ps1 -EnvType test
-
-# 部署生产环境
-./deploy.ps1 -EnvType prod
+# 停止环境
+./deploy.sh test down
+./deploy.sh prod down
 ```
 
 #### 3. 访问方式
@@ -94,13 +85,19 @@ chmod +x deploy.sh
   - 前端：`http://${HOST_IP}:18081`
   - 后端：`http://${HOST_IP}:18001`
 
-#### 4. 手动部署命令 (Docker Compose)
+#### 4. 手动管理命令 (Docker Compose)
 
-如果不使用脚本，也可以手动指定环境变量文件启动：
+如果不使用脚本，必须通过 `-p` 参数指定项目名称，否则无法正确管理容器：
 
 ```bash
-# 启动测试环境实例
+# 启动测试环境
 docker-compose --env-file .env.test -p mano-viewer-test up -d --build
+
+# 停止测试环境
+docker-compose -p mano-viewer-test down
+
+# 停止生产环境
+docker-compose -p mano-viewer-prod down
 ```
 
 ---
