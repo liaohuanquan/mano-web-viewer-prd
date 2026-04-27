@@ -305,7 +305,7 @@ export default function Scene3D({
         <directionalLight position={[-2, 1, -1]} intensity={0.3} />
 
         {/* 坐标轴（世界原点 = 第一帧手部位置） */}
-        <CameraAxes />
+        {/* <CameraAxes /> */}
 
         {/* 网格地面 */}
         <Ground />
