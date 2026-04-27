@@ -266,11 +266,11 @@ export default function Scene3D({
       <div className={styles.metricsPanel}>
         <div className={styles.metricsTitle}>测量数据</div>
         <div className={styles.metricsRow}>
-          <span className={styles.metricsLabel}>📷↔🤚 左手距离</span>
+          <span className={styles.metricsLabel}>📷 左手-原点距离</span>
           <span className={styles.metricsValue}>{fmt(metrics.leftCamDist)} cm</span>
         </div>
         <div className={styles.metricsRow}>
-          <span className={styles.metricsLabel}>📷↔✋ 右手距离</span>
+          <span className={styles.metricsLabel}>📷 右手-原点距离</span>
           <span className={styles.metricsValue}>{fmt(metrics.rightCamDist)} cm</span>
         </div>
         <div className={styles.metricsDivider} />
