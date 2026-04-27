@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef } from "react";
 import type { ManoTrack } from "@/types/mano";
 import styles from "./Scene3D.module.css";
 import React from "react";
+import { log } from "console";
 
 interface Scene3DProps {
   /** 当前帧索引 */
@@ -227,7 +228,7 @@ export default function Scene3D({
 }: Scene3DProps) {
   // 以第一帧手部位置作为世界坐标原点
   const originOffset = useMemo(() => computeOriginOffset(tracks), [tracks]);
-
+  console.log("originOffset", originOffset);
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
 
   /** 重置相机视角到默认位置 */
