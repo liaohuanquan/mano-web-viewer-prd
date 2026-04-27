@@ -122,12 +122,14 @@ const JOINT_MIDDLE1 = 4; // 中指MCP关节（第一排指关节）
  * 取第一个有效帧的 cam_trans 作为原点
  */
 function computeOriginOffset(tracks: ManoTrack[]): [number, number, number] {
+  // 遍历所有轨迹的所有帧，找到全场第一个有效的 cam_trans
   for (const track of tracks) {
-    if (!track.cam_trans || track.cam_trans.length === 0) continue;
-    const pos = track.cam_trans[0];
-    if (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0) {
-      // OpenCV -> Three.js 坐标转换 (Y, Z 翻转)
-      return [pos[0], -pos[1], -pos[2]];
+    if (!track.cam_trans) continue;
+    for (const pos of track.cam_trans) {
+      if (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0) {
+        // 找到了第一个有效位置，转换为 Three.js 坐标系 (Y, Z 翻转)
+        return [pos[0], -pos[1], -pos[2]];
+      }
     }
   }
   return [0, 0, 0];
@@ -320,24 +322,27 @@ export default function Scene3D({
           const frameNext = Math.min(totalTrackFrames - 1, frameInt + 1);
           const alpha = interpolationEnabled ? (currentFrame % 1) : 0;
 
-          // 1. 插值位置 (cam_trans)
+          // 1. 获取当前帧原始坐标并插值
           const p1 = track.cam_trans?.[frameInt];
           const p2 = track.cam_trans?.[frameNext];
-          
           if (!p1 || !p2 || (p1[0] === 0 && p1[1] === 0 && p1[2] === 0)) return null;
 
-          // 相机坐标 -> Three.js 坐标（Y, Z 翻转），再减去原点偏移
+          const rawX = p1[0] + (p2[0] - p1[0]) * alpha;
+          const rawY = p1[1] + (p2[1] - p1[1]) * alpha;
+          const rawZ = p1[2] + (p2[2] - p1[2]) * alpha;
+
+          // 2. 转换为 Three.js 坐标系并减去原点偏移
           const interpolatedPos: [number, number, number] = [
-            (p1[0] + (p2[0] - p1[0]) * alpha) - originOffset[0],
-            -(p1[1] + (p2[1] - p1[1]) * alpha) - originOffset[1],
-            -(p1[2] + (p2[2] - p1[2]) * alpha) - originOffset[2],
+            rawX - originOffset[0],
+            -rawY - originOffset[1],
+            -rawZ - originOffset[2],
           ];
 
           // 颜色与左右手设置
           const isRight = track.is_right[frameInt] === 1;
           const color = isRight ? "#FF6B6B" : "#00CED1";
 
-          // 2. 插值顶点 (verts)
+          // 3. 插值顶点 (verts)
           const v1 = track.verts?.[frameInt];
           const v2 = track.verts?.[frameNext];
           let interpolatedVerts: number[][] | undefined = undefined;
@@ -365,8 +370,13 @@ export default function Scene3D({
                 </group>
               ) : (
                 <mesh position={[0, 0, 0]}>
-                  <sphereGeometry args={[0.05, 16, 16]} />
-                  <meshStandardMaterial color={color} roughness={0.3} />
+                  <sphereGeometry args={[0.04, 16, 16]} />
+                  <meshStandardMaterial 
+                    color={color} 
+                    roughness={0.3} 
+                    emissive={color}
+                    emissiveIntensity={0.2}
+                  />
                 </mesh>
               )}
             </group>
