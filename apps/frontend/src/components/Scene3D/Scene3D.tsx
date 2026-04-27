@@ -45,12 +45,12 @@ function DataCameraMarker({ position }: { position: [number, number, number] }) 
   return (
     <group position={position}>
       <axesHelper args={[0.18]} />
-      <mesh position={[0, 0, 0.06]}>
+      <mesh position={[0, 0, 0]}>
         <sphereGeometry args={[0.015, 12, 12]} />
         <meshStandardMaterial color="#ffd166" emissive="#6b5310" emissiveIntensity={0.7} />
       </mesh>
-      {/* OpenCV 前向通常为 +Z；当前场景做了 z 反向，因此锥体朝向 -Z */}
-      <mesh position={[0, 0, -0.09]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* 调整相机锥体为正向 */}
+      <mesh position={[0, 0, 0.09]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.06, 0.18, 24, 1, true]} />
         <meshStandardMaterial color="#ffd166" wireframe transparent opacity={0.7} />
       </mesh>
