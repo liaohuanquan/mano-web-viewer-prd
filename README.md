@@ -47,27 +47,70 @@ uvicorn main:app --reload --port 8000
 
 ### Docker 部署
 
-1. **配置环境变量**：复制并修改 `.env` 文件中的 `HOST_IP` 和端口配置。
-2. **启动服务**：在项目根目录下执行：
+项目支持生产环境 (`prod`) 和测试环境 (`test`) 的并行部署。
+
+#### 1. 环境配置文件
+
+在根目录下已经准备了两个环境配置文件：
+
+- **`.env.prod`**: 生产环境配置（默认端口：18080/18000）。
+- **`.env.test`**: 测试环境配置（默认端口：18081/18001）。
+
+您可以根据服务器 IP 修改文件中的 `HOST_IP` 和 `NEXT_PUBLIC_API_URL`。
+
+#### 2. 一键部署脚本
+
+推荐使用提供的部署脚本，它会自动处理环境变量加载并隔离容器组（使用不同的项目名称）。
+
+**Linux 环境：**
 
 ```bash
-docker-compose up -d --build
+# 部署测试环境
+chmod +x deploy.sh
+./deploy.sh test
+
+# 部署生产环境
+./deploy.sh prod
 ```
 
-#### 访问方式
+**Windows (PowerShell) 环境：**
 
-根据 `.env` 中的配置，默认访问地址为：
+```powershell
+# 部署测试环境
+./deploy.ps1 -EnvType test
 
-- **前端界面**：`http://${HOST_IP}:${FRONTEND_PORT}` (例如：http://10.60.202.97:18080)
-- **后端 API**：`http://${HOST_IP}:${BACKEND_PORT}` (例如：http://10.60.202.97:18000)
-- **API 文档**：`http://${HOST_IP}:${BACKEND_PORT}/docs`
+# 部署生产环境
+./deploy.ps1 -EnvType prod
+```
+
+#### 3. 访问方式
+
+根据配置文件的设置，访问地址如下：
+
+- **生产环境 (Prod)**：
+  - 前端：`http://${HOST_IP}:18080`
+  - 后端：`http://${HOST_IP}:18000`
+- **测试环境 (Test)**：
+  - 前端：`http://${HOST_IP}:18081`
+  - 后端：`http://${HOST_IP}:18001`
+
+#### 4. 手动部署命令 (Docker Compose)
+
+如果不使用脚本，也可以手动指定环境变量文件启动：
+
+```bash
+# 启动测试环境实例
+docker-compose --env-file .env.test -p mano-viewer-test up -d --build
+```
+
+---
 
 #### 远程访问提示 (SSH Tunnel)
 
 如果服务器防火墙限制了端口访问，可以在本地终端使用 SSH 隧道映射端口：
 
 ```bash
-# 在本地电脑执行
+# 在本地电脑执行（以生产环境为例）
 ssh -L 18080:localhost:18080 -L 18000:localhost:18000 ubuntu@10.60.202.97
 ```
 

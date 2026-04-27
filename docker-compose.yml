@@ -4,7 +4,7 @@ services:
     build:
       context: ./apps/backend
     ports:
-      - "18000:8000"
+      - "${BACKEND_EXTERNAL_PORT:-18000}:8000"
     volumes:
       - ./public/mock:/app/mock # 挂载测试数据
       - ./public/model:/app/model # 挂载 MANO 模型文件
@@ -13,15 +13,15 @@ services:
       - /home/ubuntu/Synadata_dev/:/home/ubuntu/Synadata_dev/ # 挂载服务器数据根目录，保证绝对路径一致性
     environment:
       - SERVER_DATA_ROOT=/home/ubuntu/Synadata_dev/
-      - ENV=production
-      - ALLOWED_ORIGINS=http://${HOST_IP:-localhost}:${FRONTEND_PORT:-3000},http://localhost:3000,http://localhost:18080
+      - ENV=${ENV:-production}
+      - ALLOWED_ORIGINS=http://${HOST_IP:-localhost}:${FRONTEND_PORT:-3000},http://localhost:3000,http://localhost:18080,http://${HOST_IP:-localhost}:18081
 
   # 前端服务
   frontend:
     build:
       context: ./apps/frontend
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:18000/api
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:18000/api}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
