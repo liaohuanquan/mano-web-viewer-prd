@@ -7,8 +7,8 @@
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&style=flat-square)
 
 Web 端 MANO PKL 手部模型可视化检查工具。
-![alt text](image-1.png)
-![alt text](image.png)
+![image-1](image/README/image-1.png)
+![image](image/README/image.png)
 ![1776829484635](image/README/1776829484635.gif)
 
 ## 项目结构
