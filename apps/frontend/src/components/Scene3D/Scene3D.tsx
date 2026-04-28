@@ -228,7 +228,16 @@ export default function Scene3D({
 }: Scene3DProps) {
   // 以第一帧手部位置作为世界坐标原点
   const originOffset = useMemo(() => computeOriginOffset(tracks), [tracks]);
-  console.log("originOffset", originOffset);
+  
+  useEffect(() => {
+    tracks.forEach(track => {
+      const pos = track.cam_trans?.[0];
+      const side = track.is_right[0] === 1 ? "Right" : "Left";
+      console.log(`[Scene3D] Frame 0 ${side} Hand position:`, pos);
+    });
+  }, [tracks]);
+
+  console.log('[Scene3D] originOffset', originOffset);
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
 
   /** 重置相机视角到默认位置 */
@@ -396,10 +405,12 @@ export default function Scene3D({
 
         {/* 视角指示器 */}
         <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
-          <GizmoViewport
-            axisColors={["#ff0000", "#00ff00", "#0000ff"]}
-            labelColor="white"
-          />
+          <group rotation={[Math.PI, 0, 0]}>
+            <GizmoViewport
+              axisColors={["#ff0000", "#00ff00", "#0000ff"]}
+              labelColor="white"
+            />
+          </group>
         </GizmoHelper>
       </Canvas>
     </div>
