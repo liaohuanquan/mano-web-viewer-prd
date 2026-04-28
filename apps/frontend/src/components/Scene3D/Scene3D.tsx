@@ -43,17 +43,17 @@ function Ground() {
  * 用小坐标轴 + 锥体表示相机位置与朝向
  */
 function DataCameraMarker({ position }: { position: [number, number, number] }) {
-  return (
+    return (
     <group position={position} scale={[1, 1, -1]}>
       <axesHelper args={[0.18]} />
       <mesh position={[0, 0, 0]}>
         <sphereGeometry args={[0.015, 12, 12]} />
-        <meshBasicMaterial color="#ffd166" />
+        <meshStandardMaterial color="#ffd166" emissive="#6b5310" emissiveIntensity={0.7} />
       </mesh>
       {/* 锥尖在原点*/}
-      <mesh position={[0, 0, -0.09]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0, 0.09]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.06, 0.18, 24, 1, true]} />
-        <meshBasicMaterial color="#ffd166" wireframe transparent opacity={0.7} />
+        <meshStandardMaterial color="#ffd166" wireframe transparent opacity={0.7} />
       </mesh>
     </group>
   );
