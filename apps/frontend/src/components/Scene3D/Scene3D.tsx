@@ -44,16 +44,16 @@ function Ground() {
  */
 function DataCameraMarker({ position }: { position: [number, number, number] }) {
   return (
-    <group position={position}>
+    <group position={position} scale={[1, 1, -1]}>
       <axesHelper args={[0.18]} />
       <mesh position={[0, 0, 0]}>
         <sphereGeometry args={[0.015, 12, 12]} />
-        <meshStandardMaterial color="#ffd166" emissive="#6b5310" emissiveIntensity={0.7} />
+        <meshBasicMaterial color="#ffd166" />
       </mesh>
       {/* 锥尖在原点*/}
       <mesh position={[0, 0, -0.09]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.06, 0.18, 24, 1, true]} />
-        <meshStandardMaterial color="#ffd166" wireframe transparent opacity={0.7} />
+        <meshBasicMaterial color="#ffd166" wireframe transparent opacity={0.7} />
       </mesh>
     </group>
   );
@@ -405,12 +405,10 @@ export default function Scene3D({
 
         {/* 视角指示器 */}
         <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
-          <group rotation={[Math.PI, 0, 0]}>
-            <GizmoViewport
-              axisColors={["#ff0000", "#00ff00", "#0000ff"]}
-              labelColor="white"
-            />
-          </group>
+          <GizmoViewport
+            axisColors={["#ff0000", "#00ff00", "#0000ff"]}
+            labelColor="white"
+          />
         </GizmoHelper>
       </Canvas>
     </div>
