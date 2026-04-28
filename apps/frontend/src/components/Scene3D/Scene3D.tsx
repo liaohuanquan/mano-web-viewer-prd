@@ -397,7 +397,7 @@ export default function Scene3D({
         {/* 视角指示器 */}
         <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
           <GizmoViewport
-            axisColors={["#FF4060", "#40FF60", "#4060FF"]}
+            axisColors={["#ff0000", "#00ff00", "#0000ff"]}
             labelColor="white"
           />
         </GizmoHelper>
