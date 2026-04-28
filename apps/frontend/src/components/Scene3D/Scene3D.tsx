@@ -51,7 +51,7 @@ function DataCameraMarker({ position }: { position: [number, number, number] }) 
         <meshStandardMaterial color="#ffd166" emissive="#6b5310" emissiveIntensity={0.7} />
       </mesh>
       {/* 锥尖在原点*/}
-      <mesh position={[0, 0, 0.09]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[0, 0, 0.09]} rotation={[-Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.06, 0.18, 24, 1, true]} />
         <meshStandardMaterial color="#ffd166" wireframe transparent opacity={0.7} />
       </mesh>
