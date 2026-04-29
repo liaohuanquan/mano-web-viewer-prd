@@ -25,6 +25,8 @@ interface VideoOverlayProps {
   faces?: number[][];
   /** 是否开启插值 */
   interpolationEnabled?: boolean;
+  /** 相机内参 [fx, fy, cx, cy] */
+  intrinsics_pnp?: number[];
 }
 
 /**
@@ -42,6 +44,7 @@ export default function VideoOverlay({
   tracks = [],
   faces = [],
   interpolationEnabled = false,
+  intrinsics_pnp,
 }: VideoOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,16 +108,28 @@ export default function VideoOverlay({
         if (ctx) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           
-          // 相机内参 (基于 dyn-hamr 中真实相机估计值)
-          // FIXME: 如果输入视频的分辨率非 1280x720，此处的内参可能需要缩放。这里我们在 handleVideoResize 获得的大小为视频大小。
-          // 假设 1280x720，等比缩放
-          const scaleX = canvas.width / 1280.0;
-          const scaleY = canvas.height / 720.0;
+          // 相机内参
+          let pnp_fx: number, pnp_fy: number, pnp_cx: number, pnp_cy: number;
+          if (intrinsics_pnp && intrinsics_pnp.length === 4) {
+            [pnp_fx, pnp_fy, pnp_cx, pnp_cy] = intrinsics_pnp;
+          } else {
+            // 兼容旧数据的默认值
+            pnp_fx = 1382*5/2.0;
+            pnp_fy = 1382*5/2.0;
+            pnp_cx = 639.0;
+            pnp_cy = 357.0;
+          }
+
+          // 缩放至 canvas 尺寸（内参基于原始视频分辨率）
+          const origW = intrinsics_pnp ? pnp_cx * 2 : 1280.0;
+          const origH = intrinsics_pnp ? pnp_cy * 2 : 720.0;
+          const scaleX = canvas.width / origW;
+          const scaleY = canvas.height / origH;
           
-          const fx = 1382*5/2.0 * scaleX;
-          const fy = 1382*5/2.0 * scaleY;
-          const cx = 639.0 * scaleX;
-          const cy = 357.0 * scaleY;
+          const fx = pnp_fx * scaleX;
+          const fy = pnp_fy * scaleY;
+          const cx = pnp_cx * scaleX;
+          const cy = pnp_cy * scaleY;
 
           // 使用透传过来的高精度 currentFrame
           const frameInt = Math.floor(currentFrame);
@@ -123,6 +138,8 @@ export default function VideoOverlay({
           tracks.forEach(track => {
             const totalTrackFrames = track.cam_trans?.length || 0;
             if (totalTrackFrames === 0) return;
+            // 跳过不可见帧
+            if (track.vis_mask && !track.vis_mask[frameInt]) return;
             const frameNext = Math.min(totalTrackFrames - 1, frameInt + 1);
 
             const isRight = track.is_right[frameInt] === 1;

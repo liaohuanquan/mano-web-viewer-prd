@@ -38,10 +38,12 @@ function HomePageContent() {
   const [seqName, setSeqName] = useState<string>('');
   const [tracks, setTracks] = useState<ManoTrack[]>([]);
   const [faces, setFaces] = useState<number[][]>([]);
+  const [pklFps, setPklFps] = useState(30);
+  const [intrinsicsPnp, setIntrinsicsPnp] = useState<number[] | undefined>();
 
   const player = usePlayer({ 
     totalFrames, 
-    fps: 30,
+    fps: pklFps,
     useInternalTimer: !videoUrl // 有视频时禁用内部定时器，由视频驱动
   });
 
@@ -92,6 +94,8 @@ function HomePageContent() {
       setTotalFrames(result.total_frames || 0);
       setTracks(result.tracks || []);
       setFaces(result.faces || []);
+      if (result.file_info?.pkl_fps) setPklFps(result.file_info.pkl_fps);
+      setIntrinsicsPnp(result.intrinsics_pnp);
       setLoadingState('rendering');
 
     } catch (err) {
@@ -154,6 +158,8 @@ function HomePageContent() {
       setTotalFrames(result.total_frames || 0);
       setTracks(result.tracks || []);
       setFaces(result.faces || []);
+      if (result.file_info?.pkl_fps) setPklFps(result.file_info.pkl_fps);
+      setIntrinsicsPnp(result.intrinsics_pnp);
       setLoadingState('rendering');
 
     } catch (err) {
@@ -288,6 +294,7 @@ function HomePageContent() {
                     tracks={tracks}
                     faces={faces}
                     interpolationEnabled={player.interpolationEnabled}
+                    intrinsics_pnp={intrinsicsPnp}
                   />
                 )}
               </div>

@@ -214,6 +214,30 @@ const FileUpload: React.FC<FileUploadProps> = ({
     localStorage.setItem('mano_recent_projects', JSON.stringify(updated));
   };
 
+  // 拖拽处理逻辑
+  const handleDrag = (e: DragEvent, type: 'pkl' | 'mp4', active: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'pkl') setPklDragActive(active);
+    else setMp4DragActive(active);
+  };
+
+  const handleDrop = (e: DragEvent, type: 'pkl' | 'mp4') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'pkl') setPklDragActive(false);
+    else setMp4DragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (type === 'pkl' && file.name.endsWith('.pkl')) {
+        setPklFile(file);
+      } else if (type === 'mp4' && file.type === 'video/mp4') {
+        setMp4File(file);
+      }
+    }
+  };
+
   const handleServerSubmit = () => {
     if (selectedFile?.pkl_path && selectedFile?.mp4_path) {
       saveToRecent(selectedFile);
@@ -284,19 +308,35 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
       {activeTab === 'local' ? (
         <div className={styles.uploadFields}>
-          {/* 本地上传逻辑保持不变 */}
+          {/* 本地上传逻辑支持拖拽 */}
           <div className={styles.uploadField}>
-            <div className={`${styles.dropZone} ${pklFile ? styles.dropZoneSelected : ''}`} onClick={() => pklInputRef.current?.click()}>
+            <div 
+              className={`${styles.dropZone} ${pklFile ? styles.dropZoneSelected : ''} ${pklDragActive ? styles.dropZoneActive : ''}`} 
+              onClick={() => pklInputRef.current?.click()}
+              onDragEnter={(e) => handleDrag(e, 'pkl', true)}
+              onDragOver={(e) => handleDrag(e, 'pkl', true)}
+              onDragLeave={(e) => handleDrag(e, 'pkl', false)}
+              onDrop={(e) => handleDrop(e, 'pkl')}
+            >
               <span className={styles.dropIcon}>📄</span>
               <span className={styles.dropLabel}>PKL 文件</span>
+              <span className={styles.dropHint}>点击或拖拽上传</span>
               {pklFile && <span className={styles.fileName}>{pklFile.name}</span>}
               <input ref={pklInputRef} type="file" accept=".pkl" className={styles.hiddenInput} onChange={(e: ChangeEvent<HTMLInputElement>) => setPklFile(e.target.files?.[0] || null)} />
             </div>
           </div>
           <div className={styles.uploadField}>
-            <div className={`${styles.dropZone} ${mp4File ? styles.dropZoneSelected : ''}`} onClick={() => mp4InputRef.current?.click()}>
+            <div 
+              className={`${styles.dropZone} ${mp4File ? styles.dropZoneSelected : ''} ${mp4DragActive ? styles.dropZoneActive : ''}`} 
+              onClick={() => mp4InputRef.current?.click()}
+              onDragEnter={(e) => handleDrag(e, 'mp4', true)}
+              onDragOver={(e) => handleDrag(e, 'mp4', true)}
+              onDragLeave={(e) => handleDrag(e, 'mp4', false)}
+              onDrop={(e) => handleDrop(e, 'mp4')}
+            >
               <span className={styles.dropIcon}>🎬</span>
               <span className={styles.dropLabel}>MP4 视频</span>
+              <span className={styles.dropHint}>点击或拖拽上传</span>
               {mp4File && <span className={styles.fileName}>{mp4File.name}</span>}
               <input ref={mp4InputRef} type="file" accept="video/mp4" className={styles.hiddenInput} onChange={(e: ChangeEvent<HTMLInputElement>) => setMp4File(e.target.files?.[0] || null)} />
             </div>

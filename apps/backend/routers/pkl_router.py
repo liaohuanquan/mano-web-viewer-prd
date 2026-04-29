@@ -296,5 +296,7 @@ async def parse_server_pkl(req: ParseServerPklRequest):
         "total_frames": pkl_frames,
         "tracks": result.get("tracks", []),
         "faces": result.get("faces", []),
+        "intrinsics_pnp": result.get("intrinsics_pnp"),
+        "file_info": result.get("file_info"),
         "relative_mp4_path": rel_mp4
     }

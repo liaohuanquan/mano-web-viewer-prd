@@ -7,7 +7,6 @@ import { useEffect, useMemo, useRef } from "react";
 import type { ManoTrack } from "@/types/mano";
 import styles from "./Scene3D.module.css";
 import React from "react";
-import { log } from "console";
 
 interface Scene3DProps {
   /** 当前帧索引 */
@@ -44,7 +43,7 @@ function Ground() {
  */
 function DataCameraMarker({ position }: { position: [number, number, number] }) {
     return (
-    <group position={position} scale={[1, 1, -1]}>
+    <group position={position} scale={[1, -1, -1]}>
       <axesHelper args={[0.18]} />
       <mesh position={[0, 0, 0]}>
         <sphereGeometry args={[0.015, 12, 12]} />
@@ -119,24 +118,6 @@ const JOINT_WRIST = 0;
 const JOINT_MIDDLE1 = 4; // 中指MCP关节（第一排指关节）
 
 /**
- * 计算第一帧手部位置作为世界坐标原点偏移量
- * 取第一个有效帧的 cam_trans 作为原点
- */
-function computeOriginOffset(tracks: ManoTrack[]): [number, number, number] {
-  // 遍历所有轨迹的所有帧，找到全场第一个有效的 cam_trans
-  for (const track of tracks) {
-    if (!track.cam_trans) continue;
-    for (const pos of track.cam_trans) {
-      if (pos[0] !== 0 || pos[1] !== 0 || pos[2] !== 0) {
-        // 找到了第一个有效位置，转换为 Three.js 坐标系 (Y, Z 翻转)
-        return [pos[0], -pos[1], -pos[2]];
-      }
-    }
-  }
-  return [0, 0, 0];
-}
-
-/**
  * 计算 3D 空间中两点距离（米），转换为 cm
  */
 function distance3D(a: [number, number, number], b: [number, number, number]): number {
@@ -173,6 +154,8 @@ function computeMetrics(
     const p1 = track.cam_trans?.[frameInt];
     const p2 = track.cam_trans?.[frameNext];
     if (!p1 || !p2 || (p1[0] === 0 && p1[1] === 0 && p1[2] === 0)) continue;
+    // 跳过不可见帧
+    if (track.vis_mask && !track.vis_mask[frameInt]) continue;
 
     // 手根部(cam_trans)在原始坐标系中的位置
     const handRoot: [number, number, number] = [
@@ -226,9 +209,6 @@ export default function Scene3D({
   faces,
   interpolationEnabled = false 
 }: Scene3DProps) {
-  // 以第一帧手部位置作为世界坐标原点
-  const originOffset = useMemo(() => computeOriginOffset(tracks), [tracks]);
-  
   useEffect(() => {
     tracks.forEach(track => {
       const pos = track.cam_trans?.[0];
@@ -237,7 +217,6 @@ export default function Scene3D({
     });
   }, [tracks]);
 
-  console.log('[Scene3D] originOffset', originOffset);
   const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
 
   /** 重置相机视角到默认位置 */
@@ -247,12 +226,6 @@ export default function Scene3D({
     }
   };
 
-  // 计算相机在新坐标系下的位置（原始相机在 0,0,0，减去原点偏移）
-  const dataCameraPos: [number, number, number] = useMemo(() => [
-    -originOffset[0],
-    -originOffset[1],
-    -originOffset[2],
-  ], [originOffset]);
 
   // 计算当前帧的测量数据
   const metrics = useMemo(
@@ -319,20 +292,23 @@ export default function Scene3D({
         {/* 网格地面 */}
         <Ground />
 
-        {/* 数据相机位置标记：相对于新世界原点的偏移位置 */}
-        <DataCameraMarker position={dataCameraPos} />
+        {/* 数据相机位置标记：世界坐标系固定，相机在原点 */}
+        <DataCameraMarker position={[0, 0, 0]} />
 
         {/* 动态手部渲染 */}
         {tracks.map((track) => {
+          // 检查当前帧是否可见
+          const frameInt = Math.floor(currentFrame);
+          if (track.vis_mask && !track.vis_mask[frameInt]) return null;
+
           const totalTrackFrames = track.cam_trans?.length || 0;
           if (totalTrackFrames === 0) return null;
 
           // 计算插值参数
-          const frameInt = Math.floor(currentFrame);
           const frameNext = Math.min(totalTrackFrames - 1, frameInt + 1);
           const alpha = interpolationEnabled ? (currentFrame % 1) : 0;
 
-          // 1. 获取当前帧原始坐标并插值
+          // 获取当前帧原始坐标并插值
           const p1 = track.cam_trans?.[frameInt];
           const p2 = track.cam_trans?.[frameNext];
           if (!p1 || !p2 || (p1[0] === 0 && p1[1] === 0 && p1[2] === 0)) return null;
@@ -341,11 +317,11 @@ export default function Scene3D({
           const rawY = p1[1] + (p2[1] - p1[1]) * alpha;
           const rawZ = p1[2] + (p2[2] - p1[2]) * alpha;
 
-          // 2. 转换为 Three.js 坐标系并减去原点偏移
+          // 转换为 Three.js 坐标系（Y, Z 翻转），世界坐标系固定无需偏移
           const interpolatedPos: [number, number, number] = [
-            rawX - originOffset[0],
-            -rawY - originOffset[1],
-            -rawZ - originOffset[2],
+            rawX,
+            -rawY,
+            -rawZ,
           ];
 
           // 颜色与左右手设置
