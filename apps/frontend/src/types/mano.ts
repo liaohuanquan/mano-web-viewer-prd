@@ -11,6 +11,8 @@ export interface ManoTrack {
   cam_trans: number[][];
   /** 手的类型：0=左手, 1=右手 */
   is_right: number[];
+  /** 每帧的可见性遮罩 */
+  vis_mask: boolean[];
   /** 每帧的顶点数据 (可选) */
   verts?: number[][][];
   /** 每帧的关节点数据 (可选, 16个关节点) */
@@ -29,6 +31,17 @@ export interface ManoData {
   tracks: ManoTrack[];
   /** MANO 面片索引 (共享) */
   faces?: number[][];
+  /** 相机内参 [fx, fy, cx, cy] */
+  intrinsics_pnp?: number[];
+  /** 文件元信息（fps、时长等） */
+  file_info?: {
+    timeline_kind?: string;
+    source_fps?: number;
+    pkl_fps?: number;
+    source_frame_count?: number;
+    frame_count?: number;
+    source_duration_sec?: number;
+  };
 }
 
 /** API 响应包装 */

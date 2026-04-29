@@ -55,7 +55,7 @@ def validate_pkl_data(data: Any) -> dict:
     # 逐 track 校验
     for track_id, track in tracks.items():
         # V9: track 缺少必须字段
-        required_track_keys = ["body_pose", "global_orient", "cam_trans", "betas", "is_right"]
+        required_track_keys = ["body_pose", "global_orient", "cam_trans", "betas", "is_right", "vis_mask"]
         for key in required_track_keys:
             if key not in track:
                 return {
@@ -103,5 +103,22 @@ def validate_pkl_data(data: Any) -> dict:
                 "success": False,
                 "error": f"Invalid is_right shape for track {track_id}: expected ({T},), got {is_right.shape}.",
             }
+
+        # V16: vis_mask shape
+        vis_mask = np.asarray(track["vis_mask"])
+        if vis_mask.shape != (T,):
+            return {
+                "success": False,
+                "error": f"Invalid vis_mask shape for track {track_id}: expected ({T},), got {vis_mask.shape}.",
+            }
+
+        # V17: joints2d shape (可选字段)
+        if "joints2d" in track:
+            joints2d = np.asarray(track["joints2d"])
+            if joints2d.shape != (T, 21, 3):
+                return {
+                    "success": False,
+                    "error": f"Invalid joints2d shape for track {track_id}: expected ({T}, 21, 3), got {joints2d.shape}.",
+                }
 
     return {"success": True}

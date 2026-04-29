@@ -26,6 +26,7 @@ def extract_track_data(data: dict) -> dict:
         body_pose = np.asarray(track["body_pose"], dtype=np.float32)
         betas = np.asarray(track["betas"], dtype=np.float32)
         global_orient = np.asarray(track["global_orient"], dtype=np.float32)
+        vis_mask = np.asarray(track.get("vis_mask", np.ones(T, dtype=bool)), dtype=bool)
         
         # 初始化顶点数组 [T, 778, 3] 和关节点数组 [T, 16, 3]
         verts = np.zeros((T, 778, 3), dtype=np.float32)
@@ -34,8 +35,8 @@ def extract_track_data(data: dict) -> dict:
         # 如果模型就绪，则进行重建
         if mano_builder.is_ready:
             for t in range(T):
-                # 如果这个 frame 根本没有手（比如全零或者被过滤了） 这里可以用 cam_trans 来简单过滤
-                if np.sum(np.abs(cam_trans[t])) == 0:
+                # 跳过不可见帧和无效帧
+                if not vis_mask[t] or np.sum(np.abs(cam_trans[t])) == 0:
                     continue
                 result = mano_builder.build_verts(
                     is_right=(is_right[t] == 1),
@@ -50,6 +51,7 @@ def extract_track_data(data: dict) -> dict:
             "track_id": int(track_id),
             "cam_trans": cam_trans.tolist(),
             "is_right": is_right.tolist(),
+            "vis_mask": vis_mask.tolist(),
             "verts": verts.tolist(),
             "joints": joints.tolist(),
         })
@@ -60,6 +62,8 @@ def extract_track_data(data: dict) -> dict:
         "total_frames": T,
         "tracks": tracks_out,
         "faces": mano_builder.faces.tolist() if mano_builder.is_ready else [],
+        "intrinsics_pnp": data.get("intrinsics_pnp"),
+        "file_info": data.get("file_info"),
     }
 
     return result
