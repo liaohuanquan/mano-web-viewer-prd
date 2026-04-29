@@ -43,7 +43,7 @@ function Ground() {
  */
 function DataCameraMarker({ position }: { position: [number, number, number] }) {
     return (
-    <group position={position} scale={[1, 1, -1]}>
+    <group position={position} scale={[1, -1, -1]}>
       <axesHelper args={[0.18]} />
       <mesh position={[0, 0, 0]}>
         <sphereGeometry args={[0.015, 12, 12]} />
