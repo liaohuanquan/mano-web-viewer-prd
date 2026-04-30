@@ -40,6 +40,8 @@ function HomePageContent() {
   const [faces, setFaces] = useState<number[][]>([]);
   const [pklFps, setPklFps] = useState(30);
   const [intrinsicsPnp, setIntrinsicsPnp] = useState<number[] | undefined>();
+  const [exportProgress, setExportProgress] = useState(0);
+  const videoOverlayRef = useRef<any>(null);
 
   const player = usePlayer({ 
     totalFrames, 
@@ -181,6 +183,15 @@ function HomePageContent() {
       handleServerFileSelected(pkl, mp4);
     }
   }, [searchParams, handleServerFileSelected, loadingState]);
+ 
+  /** 执行导出视频 */
+  const handleExport = useCallback(() => {
+    if (videoOverlayRef.current) {
+      videoOverlayRef.current.startExport((progress: number) => {
+        setExportProgress(progress);
+      });
+    }
+  }, []);
 
   /** 处理文件选择提交（打开新标签页） */
   const handleOpenInNewTab = useCallback((pklPath: string, mp4Path: string) => {
@@ -284,6 +295,7 @@ function HomePageContent() {
               <div className={styles.viewContainer}>
                 {videoUrl && (
                   <VideoOverlay
+                    ref={videoOverlayRef}
                     videoUrl={videoUrl}
                     currentFrame={player.currentFrame}
                     totalFrames={totalFrames}
@@ -331,6 +343,8 @@ function HomePageContent() {
             onSeek={player.seek}
             interpolationEnabled={player.interpolationEnabled}
             onToggleInterpolation={() => player.setInterpolationEnabled(!player.interpolationEnabled)}
+            onExport={handleExport}
+            exportProgress={exportProgress}
           />
         </div>
       )}

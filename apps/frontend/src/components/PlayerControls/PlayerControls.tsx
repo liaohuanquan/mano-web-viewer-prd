@@ -15,6 +15,8 @@ interface PlayerControlsProps {
   onSeek: (frame: number) => void;
   interpolationEnabled: boolean;
   onToggleInterpolation: () => void;
+  onExport?: () => void;
+  exportProgress?: number;
 }
 
 /**
@@ -33,6 +35,8 @@ export default function PlayerControls({
   onSeek,
   interpolationEnabled,
   onToggleInterpolation,
+  onExport,
+  exportProgress = 0,
 }: PlayerControlsProps) {
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -115,6 +119,15 @@ export default function PlayerControls({
           title={interpolationEnabled ? '关闭插值' : '开启插值'}
         >
           {interpolationEnabled ? '插值' : '离散'}
+        </button>
+
+        <button
+          className={`${styles.controlBtn} ${exportProgress > 0 ? styles.exporting : ''}`}
+          onClick={onExport}
+          disabled={exportProgress > 0}
+          title="导出 2D 叠加视频"
+        >
+          {exportProgress > 0 ? `导出中 ${exportProgress}%` : '📥 导出'}
         </button>
       </div>
 

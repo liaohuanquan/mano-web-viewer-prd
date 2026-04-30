@@ -1,8 +1,12 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, forwardRef, useImperativeHandle, useState } from 'react';
 import styles from './VideoOverlay.module.css';
 import type { ManoTrack } from '@/types/mano';
+
+export interface VideoOverlayHandle {
+  startExport: (onProgress?: (p: number) => void) => Promise<void>;
+}
 
 interface VideoOverlayProps {
   /** MP4 文件 URL */
@@ -33,7 +37,7 @@ interface VideoOverlayProps {
  * 2D 视频叠加视图
  * 负责播放源视频并在 Canvas 上叠加 2D 手部渲染
  */
-export default function VideoOverlay({
+const VideoOverlay = forwardRef<VideoOverlayHandle, VideoOverlayProps>(({
   videoUrl,
   currentFrame,
   totalFrames,
@@ -45,11 +49,158 @@ export default function VideoOverlay({
   faces = [],
   interpolationEnabled = false,
   intrinsics_pnp,
-}: VideoOverlayProps) {
+}, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastSyncedFrameRef = useRef<number>(-1);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // 暴露导出方法给外部
+  useImperativeHandle(ref, () => ({
+    startExport: async (onProgress) => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || totalFrames <= 0) return;
+
+      setIsExporting(true);
+      if (isPlaying) onPause?.();
+
+      const stream = canvas.captureStream(0); // 手动触发抓帧
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.start();
+
+      const track = stream.getVideoTracks()[0] as any;
+
+      try {
+        for (let i = 0; i < totalFrames; i++) {
+          // 1. 跳转到指定帧
+          const targetTime = (i / (totalFrames - 1)) * video.duration;
+          video.currentTime = targetTime;
+          
+          // 2. 等待视频 seek 完成且数据可用
+          await new Promise<void>((resolve) => {
+            const onSeeked = () => {
+              video.removeEventListener('seeked', onSeeked);
+              // 额外给一点点 buffer 时间确保画面渲染完成
+              setTimeout(resolve, 30);
+            };
+            video.addEventListener('seeked', onSeeked);
+          });
+
+          // 3. 强制执行一次绘制逻辑（这里复用了渲染代码，通过 state 驱动）
+          // 由于 requestAnimationFrame 在后台可能不执行，我们在这里手动调用一次绘制
+          drawFrame(i);
+
+          // 4. 抓取当前 Canvas 画面到录制流
+          if (track.requestFrame) {
+            track.requestFrame();
+          }
+          
+          onProgress?.(Math.round(((i + 1) / totalFrames) * 100));
+        }
+
+        recorder.stop();
+        await new Promise((resolve) => (recorder.onstop = resolve));
+
+        // 5. 保存文件
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mano_export_${new Date().getTime()}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+      } catch (err) {
+        console.error('[VideoOverlay.export] 导出失败:', err);
+      } finally {
+        setIsExporting(false);
+        onProgress?.(0);
+      }
+    }
+  }));
+
+  // 将复杂的绘制逻辑提取出来，方便录制时手动调用
+  const drawFrame = useCallback((frameIdx: number) => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!video || !canvas || !ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 关键：将视频帧画入 canvas 背景
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 相机内参逻辑
+    let pnp_fx: number, pnp_fy: number, pnp_cx: number, pnp_cy: number;
+    if (intrinsics_pnp && intrinsics_pnp.length === 4) {
+      [pnp_fx, pnp_fy, pnp_cx, pnp_cy] = intrinsics_pnp;
+    } else {
+      pnp_fx = 1382*5/2.0; pnp_fy = 1382*5/2.0; pnp_cx = 639.0; pnp_cy = 357.0;
+    }
+
+    const videoW = video.videoWidth || (intrinsics_pnp ? pnp_cx * 2 : 1280.0);
+    const videoH = video.videoHeight || (intrinsics_pnp ? pnp_cy * 2 : 720.0);
+    const scaleX = canvas.width / videoW;
+    const scaleY = canvas.height / videoH;
+    const fx = pnp_fx * scaleX; const fy = pnp_fy * scaleY;
+    const cx = pnp_cx * scaleX; const cy = pnp_cy * scaleY;
+
+    const frameInt = Math.floor(frameIdx);
+    const alpha = interpolationEnabled ? (frameIdx % 1) : 0;
+
+    tracks.forEach(track => {
+      const totalTrackFrames = track.cam_trans?.length || 0;
+      if (totalTrackFrames === 0 || (track.vis_mask && !track.vis_mask[frameInt])) return;
+      
+      const frameNext = Math.min(totalTrackFrames - 1, frameInt + 1);
+      const isRight = track.is_right[frameInt] === 1;
+      const colorFill = isRight ? "rgba(255, 107, 107, 0.4)" : "rgba(0, 206, 209, 0.4)";
+      const colorStroke = isRight ? "rgba(255, 107, 107, 0.8)" : "rgba(0, 206, 209, 0.8)";
+      const v1 = track.verts?.[frameInt];
+      const v2 = track.verts?.[frameNext];
+      
+      if (v1 && v2 && v1.length === 778 && faces.length > 0) {
+        const t1 = track.cam_trans?.[frameInt] || [0,0,0];
+        const t2 = track.cam_trans?.[frameNext] || [0,0,0];
+        const cam_tx = t1[0] + (t2[0] - t1[0]) * alpha;
+        const cam_ty = t1[1] + (t2[1] - t1[1]) * alpha;
+        const cam_tz = t1[2] + (t2[2] - t1[2]) * alpha;
+        const projected = new Float32Array(778 * 2);
+        const flipX = isRight ? 1.0 : -1.0;
+
+        for (let i = 0; i < 778; i++) {
+          const lx = v1[i][0] + (v2[i][0] - v1[i][0]) * alpha;
+          const ly = v1[i][1] + (v2[i][1] - v1[i][1]) * alpha;
+          const lz = v1[i][2] + (v2[i][2] - v1[i][2]) * alpha;
+          const vx = lx * flipX + cam_tx;
+          const vy = ly + cam_ty;
+          const vz = lz + cam_tz;
+          if (vz > 0.01) {
+            projected[i*2] = cx + (vx / vz) * fx;
+            projected[i*2+1] = cy + (vy / vz) * fy;
+          } else {
+            projected[i*2] = -1000; projected[i*2+1] = -1000;
+          }
+        }
+        ctx.fillStyle = colorFill; ctx.strokeStyle = colorStroke; ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        faces.forEach(face => {
+          const x1 = projected[face[0]*2], y1 = projected[face[0]*2+1];
+          const x2 = projected[face[1]*2], y2 = projected[face[1]*2+1];
+          const x3 = projected[face[2]*2], y3 = projected[face[2]*2+1];
+          if (x1 < -500 || x2 < -500 || x3 < -500) return;
+          ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.lineTo(x1, y1);
+        });
+        ctx.fill(); ctx.stroke();
+      }
+    });
+  }, [faces, intrinsics_pnp, tracks, interpolationEnabled]);
 
   /** 同步视频到指定帧 */
   const seekToFrame = useCallback((frame: number) => {
@@ -119,140 +270,24 @@ export default function VideoOverlay({
     let animationFrameId: number;
 
     const renderLoop = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
+      // 如果正在导出，则不执行正常的循环绘制（避免冲突）
+      if (isExporting) {
+        animationFrameId = requestAnimationFrame(renderLoop);
+        return;
+      }
 
-      // 1. 同步时间到主循环
+      const video = videoRef.current;
+      // ... 之前的 renderLoop 逻辑 ...
       if (video && !video.paused && onSync && totalFrames > 0 && video.duration) {
-        // 使用更精确的映射公式，解决持续播放时的 1 帧滞后问题
         const frame = Math.floor(video.currentTime * (totalFrames / video.duration));
         const clampedFrame = Math.min(totalFrames - 1, Math.max(0, frame));
-        
-        // 仅在帧号真正变化时才同步，减少 React 渲染压力
         if (clampedFrame !== lastSyncedFrameRef.current) {
           onSync(clampedFrame);
           lastSyncedFrameRef.current = clampedFrame;
         }
       }
 
-      // 2. 将 3D Mesh 投影绘制到 Canvas
-      if (canvas && video && tracks.length > 0) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          
-          // 相机内参
-          let pnp_fx: number, pnp_fy: number, pnp_cx: number, pnp_cy: number;
-          if (intrinsics_pnp && intrinsics_pnp.length === 4) {
-            [pnp_fx, pnp_fy, pnp_cx, pnp_cy] = intrinsics_pnp;
-          } else {
-            // 兼容旧数据的默认值
-            pnp_fx = 1382*5/2.0;
-            pnp_fy = 1382*5/2.0;
-            pnp_cx = 639.0;
-            pnp_cy = 357.0;
-          }
-
-          // 缩放至 canvas 尺寸（优先使用视频实际分辨率）
-          const origW = video.videoWidth || (intrinsics_pnp ? pnp_cx * 2 : 1280.0);
-          const origH = video.videoHeight || (intrinsics_pnp ? pnp_cy * 2 : 720.0);
-          const scaleX = canvas.width / origW;
-          const scaleY = canvas.height / origH;
-          
-          if (video.videoWidth > 0 && (origW !== video.videoWidth)) {
-             console.log('[renderLoop] 尺寸检测:', { videoW: video.videoWidth, origW, scaleX });
-          }
-          
-          const fx = pnp_fx * scaleX;
-          const fy = pnp_fy * scaleY;
-          const cx = pnp_cx * scaleX;
-          const cy = pnp_cy * scaleY;
-
-          // 使用透传过来的高精度 currentFrame
-          const frameInt = Math.floor(currentFrame);
-          const alpha = interpolationEnabled ? (currentFrame % 1) : 0;
-
-          tracks.forEach(track => {
-            const totalTrackFrames = track.cam_trans?.length || 0;
-            if (totalTrackFrames === 0) return;
-            // 跳过不可见帧
-            if (track.vis_mask && !track.vis_mask[frameInt]) return;
-            const frameNext = Math.min(totalTrackFrames - 1, frameInt + 1);
-
-            const isRight = track.is_right[frameInt] === 1;
-            const colorFill = isRight ? "rgba(255, 107, 107, 0.4)" : "rgba(0, 206, 209, 0.4)";
-            const colorStroke = isRight ? "rgba(255, 107, 107, 0.8)" : "rgba(0, 206, 209, 0.8)";
-
-            const v1 = track.verts?.[frameInt];
-            const v2 = track.verts?.[frameNext];
-            
-            if (v1 && v2 && v1.length === 778 && faces.length > 0) {
-              const t1 = track.cam_trans?.[frameInt] || [0,0,0];
-              const t2 = track.cam_trans?.[frameNext] || [0,0,0];
-
-              // 插值后的位移
-              const cam_tx = t1[0] + (t2[0] - t1[0]) * alpha;
-              const cam_ty = t1[1] + (t2[1] - t1[1]) * alpha;
-              const cam_tz = t1[2] + (t2[2] - t1[2]) * alpha;
-
-              // 保存投影后的 2D 坐标
-              const projected = new Float32Array(778 * 2);
-
-              // 镜像翻转系数（与 3D 视图保持一致：左手镜像）
-              const flipX = isRight ? 1.0 : -1.0;
-
-              for (let i = 0; i < 778; i++) {
-                // 顶点局部插值
-                const lx = v1[i][0] + (v2[i][0] - v1[i][0]) * alpha;
-                const ly = v1[i][1] + (v2[i][1] - v1[i][1]) * alpha;
-                const lz = v1[i][2] + (v2[i][2] - v1[i][2]) * alpha;
-
-                // 转换到相机坐标系：应用镜像(仅X)后叠加平移
-                const vx = lx * flipX + cam_tx;
-                const vy = ly + cam_ty;
-                const vz = lz + cam_tz;
-
-                // 针孔相机投影 (OpenCV 相机：Z 向前为正方向)
-                if (vz > 0.01) {
-                  projected[i*2] = cx + (vx / vz) * fx;
-                  projected[i*2+1] = cy + (vy / vz) * fy;
-                } else {
-                  projected[i*2] = -1000;
-                  projected[i*2+1] = -1000;
-                }
-              }
-
-              // 绘制三角面
-              ctx.fillStyle = colorFill;
-              ctx.strokeStyle = colorStroke;
-              ctx.lineWidth = 0.5;
-
-              ctx.beginPath();
-              
-              faces.forEach(face => {
-                const i1 = face[0];
-                const i2 = face[1];
-                const i3 = face[2];
-
-                const x1 = projected[i1*2], y1 = projected[i1*2+1];
-                const x2 = projected[i2*2], y2 = projected[i2*2+1];
-                const x3 = projected[i3*2], y3 = projected[i3*2+1];
-
-                // 如果存在越界点则丢弃该面
-                if (x1 < -500 || x2 < -500 || x3 < -500) return;
-
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.lineTo(x3, y3);
-                ctx.lineTo(x1, y1); // 闭合面可以使得渲染更完整
-              });
-              ctx.fill();
-              ctx.stroke();
-            }
-          });
-        }
-      }
-
+      drawFrame(currentFrame);
       animationFrameId = requestAnimationFrame(renderLoop);
     };
 
@@ -304,4 +339,6 @@ export default function VideoOverlay({
       />
     </div>
   );
-}
+});
+
+export default VideoOverlay;
