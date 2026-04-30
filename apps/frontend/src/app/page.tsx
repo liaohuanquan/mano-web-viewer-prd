@@ -210,7 +210,7 @@ function HomePageContent() {
     }
   }, [searchParams, handleServerFileSelected, loadingState]);
 
-  /** 处理文件选择提交（打开新标签页，并通过 localStorage 传参） */
+  /** 处理文件选择提交（打开新标签页，并通过 localStorage 和 URL 传参） */
   const handleOpenInNewTab = useCallback((pklPath: string, mp4Path: string, scores?: any) => {
     const loadRequest = {
       pkl: pklPath,
@@ -218,11 +218,17 @@ function HomePageContent() {
       scores: scores
     };
     
-    // 存储到 localStorage
+    // 1. 存储到 localStorage (用于本浏览器新标签页快速读取完整评分数据)
     localStorage.setItem('mano_viewer_load_request', JSON.stringify(loadRequest));
     
-    // 打开新窗口 (当前页面路径)
-    window.open(window.location.origin + window.location.pathname, '_blank');
+    // 2. 生成带参数的 URL (用于地址栏显示和分享)
+    const params = new URLSearchParams();
+    params.set('pkl', pklPath);
+    params.set('mp4', mp4Path);
+    const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    
+    // 打开带路径参数的新窗口
+    window.open(shareUrl, '_blank');
   }, []);
 
   /** 重新选择文件 */
