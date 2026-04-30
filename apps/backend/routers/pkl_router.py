@@ -10,6 +10,7 @@ import joblib
 import cv2
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
+import numpy as np
 
 from services.validator import validate_pkl_data
 from services.extractor import extract_track_data
@@ -181,8 +182,10 @@ async def parse_csv(csv_path: str):
     def parse_scores(s):
         if not s: return None
         try:
-            # 处理带引号的字符串和逗号分隔值
-            return [float(x.strip()) for x in s.strip('"').split(',') if x.strip()]
+            # 移除两侧可能的引号，使用 numpy 快速解析逗号分隔的数值（比原生列表推导式快得多）
+            clean_s = str(s).strip('"').strip()
+            if not clean_s: return None
+            return np.fromstring(clean_s, sep=',').tolist()
         except:
             return None
 
