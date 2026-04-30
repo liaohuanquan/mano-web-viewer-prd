@@ -9,3 +9,4 @@ smplx
 chumpy
 aiofiles>=0.8.0
 opencv-python-headless
+pandas
