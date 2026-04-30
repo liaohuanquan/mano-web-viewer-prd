@@ -9,10 +9,7 @@ import os
 import joblib
 import cv2
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from typing import Optional
 from pydantic import BaseModel
-import pandas as pd
-import numpy as np
 
 from services.validator import validate_pkl_data
 from services.extractor import extract_track_data
@@ -175,50 +172,44 @@ async def list_projects(path: str = "", query: str = ""):
 
 @router.get("/parse-csv")
 async def parse_csv(csv_path: str):
-    """解析选中的 CSV 文件并返回记录列表 - 使用 pandas 优化性能"""
+    """解析选中的 CSV 文件并返回记录列表"""
     full_path = os.path.join(OUTPUTS_DIR, csv_path.lstrip('/'))
     if not os.path.exists(full_path) or not csv_path.endswith('.csv'):
         return {"error": "CSV file not found", "records": []}
     
-    def parse_scores_fast(s):
-        if not s or (isinstance(s, float) and np.isnan(s)): return None
+    import csv
+    def parse_scores(s):
+        if not s: return None
         try:
-            # 移除两侧可能的引号，使用 numpy 快速解析逗号分隔的数值
-            clean_s = str(s).strip('"').strip()
-            if not clean_s: return None
-            return np.fromstring(clean_s, sep=',').tolist()
-        except Exception as e:
-            print(f"[parse_csv] Score parse error: {e}")
+            # 处理带引号的字符串和逗号分隔值
+            return [float(x.strip()) for x in s.strip('"').split(',') if x.strip()]
+        except:
             return None
 
+    records = []
     try:
-        # 使用 pandas 读取 CSV，避免逐行字典转换开销
-        df = pd.read_csv(full_path)
-        
-        # 填充缺失值为 None 以便后续处理
-        df = df.where(pd.notnull(df), None)
-        
-        records = []
-        for i, row in df.iterrows():
-            pkl = row.get('pkl_path')
-            mp4 = row.get('source_path') or row.get('mp4_path') or row.get('video_path')
-            
-            if pkl and mp4:
-                records.append({
-                    "id": f"{csv_path}#{i}",
-                    "name": row.get('seq_name') or f"Record {i+1}",
-                    "pkl_path": pkl,
-                    "mp4_path": mp4,
-                    "frame_count": row.get('frame_count', 'N/A'),
-                    "track_count": row.get('track_count', 'N/A'),
-                    "per_frame_validity": parse_scores_fast(row.get('per_frame_validity')),
-                    "left_per_frame_validity": parse_scores_fast(row.get('left_per_frame_validity')),
-                    "right_per_frame_validity": parse_scores_fast(row.get('right_per_frame_validity'))
-                })
-        return {"records": records}
+        with open(full_path, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                pkl = row.get('pkl_path')
+                mp4 = row.get('source_path') or row.get('mp4_path') or row.get('video_path')
+                
+                if pkl and mp4:
+                    records.append({
+                        "id": f"{csv_path}#{i}",
+                        "name": row.get('seq_name') or f"Record {i+1}",
+                        "pkl_path": pkl,
+                        "mp4_path": mp4,
+                        "frame_count": row.get('frame_count', 'N/A'),
+                        "track_count": row.get('track_count', 'N/A'),
+                        "per_frame_validity": parse_scores(row.get('per_frame_validity')),
+                        "left_per_frame_validity": parse_scores(row.get('left_per_frame_validity')),
+                        "right_per_frame_validity": parse_scores(row.get('right_per_frame_validity'))
+                    })
     except Exception as e:
-        print(f"[parse_csv] Error: {e}")
         return {"error": f"Failed to parse CSV: {str(e)}", "records": []}
+        
+    return {"records": records}
 
 async def search_projects_globally(query: str):
     """在服务器 outputs 目录下执行全局模糊搜索"""
@@ -272,9 +263,9 @@ class ParseServerPklRequest(BaseModel):
     pkl_path: str
     mp4_path: str
     # 可选透传字段
-    per_frame_validity: Optional[list[float]] = None
-    left_per_frame_validity: Optional[list[float]] = None
-    right_per_frame_validity: Optional[list[float]] = None
+    per_frame_validity: list[float] | None = None
+    left_per_frame_validity: list[float] | None = None
+    right_per_frame_validity: list[float] | None = None
 
 @router.post("/parse-server-pkl")
 async def parse_server_pkl(req: ParseServerPklRequest):
