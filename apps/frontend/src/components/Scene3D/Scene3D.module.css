@@ -82,5 +82,31 @@
 .metricsDivider {
   height: 1px;
   background: rgba(255, 255, 255, 0.08);
-  margin: 4px 0;
+  margin: 6px 0;
+}
+
+/* 评分条 */
+.validityContainer {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin-left: 12px;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.validityBar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.1s ease-out, background-color 0.2s;
+}
+
+.validityContainer .metricsValue {
+  position: absolute;
+  right: -35px;
+  margin-left: 0;
+  width: 30px;
+  text-align: right;
 }

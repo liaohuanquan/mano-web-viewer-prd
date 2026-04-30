@@ -42,6 +42,10 @@ export interface ManoData {
     frame_count?: number;
     source_duration_sec?: number;
   };
+  /** 评分数据 (可选) */
+  per_frame_validity?: number[];
+  left_per_frame_validity?: number[];
+  right_per_frame_validity?: number[];
 }
 
 /** API 响应包装 */

@@ -17,6 +17,10 @@ interface Scene3DProps {
   faces?: number[][];
   /** 是否开启插值 */
   interpolationEnabled?: boolean;
+  /** 评分数据 (可选) */
+  perFrameValidity?: number[];
+  leftPerFrameValidity?: number[];
+  rightPerFrameValidity?: number[];
 }
 
 /**
@@ -134,6 +138,11 @@ function computeMetrics(
   tracks: ManoTrack[],
   currentFrame: number,
   interpolationEnabled: boolean,
+  scores?: {
+    perFrame?: number[];
+    leftPerFrame?: number[];
+    rightPerFrame?: number[];
+  }
 ) {
   const frameInt = Math.floor(currentFrame);
   const alpha = interpolationEnabled ? (currentFrame % 1) : 0;
@@ -195,7 +204,12 @@ function computeMetrics(
     }
   }
 
-  return { leftCamDist, rightCamDist, leftBackLen, rightBackLen };
+  // 获取评分
+  const validity = scores?.perFrame?.[frameInt] ?? null;
+  const leftValidity = scores?.leftPerFrame?.[frameInt] ?? null;
+  const rightValidity = scores?.rightPerFrame?.[frameInt] ?? null;
+
+  return { leftCamDist, rightCamDist, leftBackLen, rightBackLen, validity, leftValidity, rightValidity };
 }
 
 /**
@@ -207,7 +221,10 @@ export default function Scene3D({
   currentFrame, 
   tracks, 
   faces,
-  interpolationEnabled = false 
+  interpolationEnabled = false,
+  perFrameValidity,
+  leftPerFrameValidity,
+  rightPerFrameValidity
 }: Scene3DProps) {
   useEffect(() => {
     tracks.forEach(track => {
@@ -229,8 +246,12 @@ export default function Scene3D({
 
   // 计算当前帧的测量数据
   const metrics = useMemo(
-    () => computeMetrics(tracks, currentFrame, interpolationEnabled),
-    [tracks, currentFrame, interpolationEnabled]
+    () => computeMetrics(tracks, currentFrame, interpolationEnabled, {
+      perFrame: perFrameValidity,
+      leftPerFrame: leftPerFrameValidity,
+      rightPerFrame: rightPerFrameValidity
+    }),
+    [tracks, currentFrame, interpolationEnabled, perFrameValidity, leftPerFrameValidity, rightPerFrameValidity]
   );
 
   /** 格式化数值显示 */
@@ -264,6 +285,44 @@ export default function Scene3D({
           <span className={styles.metricsLabel}>✋ 右手背长</span>
           <span className={styles.metricsValue}>{fmt(metrics.rightBackLen)} cm</span>
         </div>
+
+        {/* 评分数据 */}
+        {(metrics.validity !== null || metrics.leftValidity !== null || metrics.rightValidity !== null) && (
+          <>
+            <div className={styles.metricsDivider} />
+            <div className={styles.metricsTitle}>评分分析 (Quality)</div>
+            
+            {metrics.validity !== null && (
+              <div className={styles.metricsRow}>
+                <span className={styles.metricsLabel}>✨ 整体评分</span>
+                <div className={styles.validityContainer}>
+                  <div className={styles.validityBar} style={{ width: `${metrics.validity * 100}%`, backgroundColor: metrics.validity > 0.8 ? '#4cc9f0' : metrics.validity > 0.5 ? '#f7b731' : '#ff4d4d' }} />
+                  <span className={styles.metricsValue}>{(metrics.validity * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            )}
+            
+            {metrics.leftValidity !== null && (
+              <div className={styles.metricsRow}>
+                <span className={styles.metricsLabel}>⬅️ 左手评分</span>
+                <div className={styles.validityContainer}>
+                  <div className={styles.validityBar} style={{ width: `${metrics.leftValidity * 100}%`, backgroundColor: '#00CED1' }} />
+                  <span className={styles.metricsValue}>{(metrics.leftValidity * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            )}
+            
+            {metrics.rightValidity !== null && (
+              <div className={styles.metricsRow}>
+                <span className={styles.metricsLabel}>➡️ 右手评分</span>
+                <div className={styles.validityContainer}>
+                  <div className={styles.validityBar} style={{ width: `${metrics.rightValidity * 100}%`, backgroundColor: '#FF6B6B' }} />
+                  <span className={styles.metricsValue}>{(metrics.rightValidity * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <Canvas

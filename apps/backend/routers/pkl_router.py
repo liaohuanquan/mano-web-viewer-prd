@@ -178,13 +178,20 @@ async def parse_csv(csv_path: str):
         return {"error": "CSV file not found", "records": []}
     
     import csv
+    def parse_scores(s):
+        if not s: return None
+        try:
+            # 处理带引号的字符串和逗号分隔值
+            return [float(x.strip()) for x in s.strip('"').split(',') if x.strip()]
+        except:
+            return None
+
     records = []
     try:
         with open(full_path, mode='r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader):
                 pkl = row.get('pkl_path')
-                # 兼容多种可能的视频路径列名
                 mp4 = row.get('source_path') or row.get('mp4_path') or row.get('video_path')
                 
                 if pkl and mp4:
@@ -194,7 +201,10 @@ async def parse_csv(csv_path: str):
                         "pkl_path": pkl,
                         "mp4_path": mp4,
                         "frame_count": row.get('frame_count', 'N/A'),
-                        "track_count": row.get('track_count', 'N/A')
+                        "track_count": row.get('track_count', 'N/A'),
+                        "per_frame_validity": parse_scores(row.get('per_frame_validity')),
+                        "left_per_frame_validity": parse_scores(row.get('left_per_frame_validity')),
+                        "right_per_frame_validity": parse_scores(row.get('right_per_frame_validity'))
                     })
     except Exception as e:
         return {"error": f"Failed to parse CSV: {str(e)}", "records": []}
@@ -252,11 +262,14 @@ async def search_projects_globally(query: str):
 class ParseServerPklRequest(BaseModel):
     pkl_path: str
     mp4_path: str
+    # 可选透传字段
+    per_frame_validity: list[float] | None = None
+    left_per_frame_validity: list[float] | None = None
+    right_per_frame_validity: list[float] | None = None
 
 @router.post("/parse-server-pkl")
 async def parse_server_pkl(req: ParseServerPklRequest):
     """解析服务器上的 PKL 文件并验证帧数"""
-    # 统一转换路径，确保绝对路径和相对路径都能被正确处理
     full_pkl_path = req.pkl_path if os.path.isabs(req.pkl_path) else os.path.join(OUTPUTS_DIR, req.pkl_path.lstrip('/'))
     full_mp4_path = req.mp4_path if os.path.isabs(req.mp4_path) else os.path.join(OUTPUTS_DIR, req.mp4_path.lstrip('/'))
     
@@ -286,7 +299,7 @@ async def parse_server_pkl(req: ParseServerPklRequest):
     if video_frames > 0 and abs(pkl_frames - video_frames) > 2:
         raise HTTPException(
             status_code=400, 
-            detail=f"数据帧数不匹配! PKL 为 {pkl_frames} 帧，而视频为 {video_frames} 帧。这可能不是同一个序列。"
+            detail=f"数据帧数不匹配! PKL 为 {pkl_frames} 帧，而视频为 {video_frames} 帧。"
         )
 
     rel_mp4 = os.path.relpath(full_mp4_path, OUTPUTS_DIR)
@@ -298,5 +311,9 @@ async def parse_server_pkl(req: ParseServerPklRequest):
         "faces": result.get("faces", []),
         "intrinsics_pnp": result.get("intrinsics_pnp"),
         "file_info": result.get("file_info"),
-        "relative_mp4_path": rel_mp4
+        "relative_mp4_path": rel_mp4,
+        # 透传评分数据
+        "per_frame_validity": req.per_frame_validity,
+        "left_per_frame_validity": req.left_per_frame_validity,
+        "right_per_frame_validity": req.right_per_frame_validity
     }

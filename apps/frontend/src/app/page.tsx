@@ -40,6 +40,11 @@ function HomePageContent() {
   const [faces, setFaces] = useState<number[][]>([]);
   const [pklFps, setPklFps] = useState(30);
   const [intrinsicsPnp, setIntrinsicsPnp] = useState<number[] | undefined>();
+  
+  // 评分状态
+  const [perFrameValidity, setPerFrameValidity] = useState<number[] | undefined>();
+  const [leftPerFrameValidity, setLeftPerFrameValidity] = useState<number[] | undefined>();
+  const [rightPerFrameValidity, setRightPerFrameValidity] = useState<number[] | undefined>();
 
   const player = usePlayer({ 
     totalFrames, 
@@ -112,7 +117,11 @@ function HomePageContent() {
   }, [videoUrl]);
 
   /** 处理服务器文件选择提交 */
-  const handleServerFileSelected = useCallback(async (pklPath: string, mp4Path: string) => {
+  const handleServerFileSelected = useCallback(async (pklPath: string, mp4Path: string, scores?: {
+    per_frame_validity?: number[];
+    left_per_frame_validity?: number[];
+    right_per_frame_validity?: number[];
+  }) => {
     console.log('[handleServerFileSelected] 开始处理服务器文件:', pklPath, mp4Path);
     setError(null);
     setLoadingState('parsing');
@@ -125,11 +134,7 @@ function HomePageContent() {
         return `http://${hostname}:${backendPort}/api`;
       })();
       
-      // 构建服务器静态文件的 URL
-      // 注意：这里的 /server-data 需要与后端 main.py 中 mounted 的路径一致
-      // mp4Path 是相对于 outputs/ 的路径
       const baseUrl = apiUrl.replace('/api', '');
-      // 我们不再在这里直接拼接 mp4Path，而是等待后端解析返回处理好的安全相对路径
 
       const response = await fetch(`${apiUrl}/parse-server-pkl`, {
         method: 'POST',
@@ -138,7 +143,8 @@ function HomePageContent() {
         },
         body: JSON.stringify({ 
           pkl_path: pklPath,
-          mp4_path: mp4Path 
+          mp4_path: mp4Path,
+          ...scores
         }),
       });
 
@@ -160,6 +166,12 @@ function HomePageContent() {
       setFaces(result.faces || []);
       if (result.file_info?.pkl_fps) setPklFps(result.file_info.pkl_fps);
       setIntrinsicsPnp(result.intrinsics_pnp);
+      
+      // 保存评分数据
+      setPerFrameValidity(result.per_frame_validity);
+      setLeftPerFrameValidity(result.left_per_frame_validity);
+      setRightPerFrameValidity(result.right_per_frame_validity);
+      
       setLoadingState('rendering');
 
     } catch (err) {
@@ -183,13 +195,17 @@ function HomePageContent() {
   }, [searchParams, handleServerFileSelected, loadingState]);
 
   /** 处理文件选择提交（打开新标签页） */
-  const handleOpenInNewTab = useCallback((pklPath: string, mp4Path: string) => {
+  const handleOpenInNewTab = useCallback((pklPath: string, mp4Path: string, scores?: any) => {
     const params = new URLSearchParams();
     params.set('pkl', pklPath);
     params.set('mp4', mp4Path);
+    // 注意：评分数据由于可能很大，暂时不通过 URL 传递，仅在当前页加载时可用
+    // 如果需要跨页传递，可以考虑在 handleServerFileSelected 中支持 scores
     const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-    window.open(url, '_blank');
-  }, []);
+    
+    // 如果是当前页加载，直接调用 handleServerFileSelected
+    handleServerFileSelected(pklPath, mp4Path, scores);
+  }, [handleServerFileSelected]);
 
   /** 重新选择文件 */
   const handleReset = useCallback(() => {
@@ -309,6 +325,9 @@ function HomePageContent() {
                   tracks={tracks} 
                   faces={faces} 
                   interpolationEnabled={player.interpolationEnabled}
+                  perFrameValidity={perFrameValidity}
+                  leftPerFrameValidity={leftPerFrameValidity}
+                  rightPerFrameValidity={rightPerFrameValidity}
                 />
               </div>
             </div>

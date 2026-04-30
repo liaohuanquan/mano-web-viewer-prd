@@ -10,6 +10,10 @@ interface FileNode {
   mp4_path?: string;
   csv_path?: string;
   isLoaded?: boolean;
+  // 评分数据
+  per_frame_validity?: number[];
+  left_per_frame_validity?: number[];
+  right_per_frame_validity?: number[];
 }
 
 interface CsvRecord {
@@ -19,11 +23,18 @@ interface CsvRecord {
   mp4_path: string;
   frame_count: string;
   track_count: string;
+  per_frame_validity?: number[];
+  left_per_frame_validity?: number[];
+  right_per_frame_validity?: number[];
 }
 
 interface FileUploadProps {
   onLocalFilesSelected: (pkl: File, mp4: File) => void;
-  onServerFileSelected: (pklPath: string, mp4Path: string) => void;
+  onServerFileSelected: (pklPath: string, mp4Path: string, scores?: {
+    per_frame_validity?: number[];
+    left_per_frame_validity?: number[];
+    right_per_frame_validity?: number[];
+  }) => void;
   isLoading?: boolean;
 }
 
@@ -247,7 +258,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const handleServerSubmit = () => {
     if (selectedFile?.pkl_path && selectedFile?.mp4_path) {
       saveToRecent(selectedFile);
-      onServerFileSelected(selectedFile.pkl_path, selectedFile.mp4_path);
+      onServerFileSelected(selectedFile.pkl_path, selectedFile.mp4_path, {
+        per_frame_validity: selectedFile.per_frame_validity,
+        left_per_frame_validity: selectedFile.left_per_frame_validity,
+        right_per_frame_validity: selectedFile.right_per_frame_validity
+      });
     }
   };
 
@@ -406,7 +421,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
                             name: record.name,
                             type: 'file',
                             pkl_path: record.pkl_path,
-                            mp4_path: record.mp4_path
+                            mp4_path: record.mp4_path,
+                            per_frame_validity: record.per_frame_validity,
+                            left_per_frame_validity: record.left_per_frame_validity,
+                            right_per_frame_validity: record.right_per_frame_validity
                           };
                           setSelectedFile(virtualNode);
                         }}
