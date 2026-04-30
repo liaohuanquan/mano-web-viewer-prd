@@ -37,8 +37,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
   // 本地上传状态
   const [pklFile, setPklFile] = useState<File | null>(null);
   const [mp4File, setMp4File] = useState<File | null>(null);
-  const [pklDragActive, setPklDragActive] = useState<boolean>(false);
-  const [mp4DragActive, setMp4DragActive] = useState<boolean>(false);
+  const [dragActive, setDragActive] = useState<boolean>(false);
   
   const pklInputRef = useRef<HTMLInputElement>(null);
   const mp4InputRef = useRef<HTMLInputElement>(null);
@@ -215,26 +214,33 @@ const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   // 拖拽处理逻辑
-  const handleDrag = (e: DragEvent, type: 'pkl' | 'mp4', active: boolean) => {
+  const handleDrag = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (type === 'pkl') setPklDragActive(active);
-    else setMp4DragActive(active);
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
   };
 
-  const handleDrop = (e: DragEvent, type: 'pkl' | 'mp4') => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (type === 'pkl') setPklDragActive(false);
-    else setMp4DragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (type === 'pkl' && file.name.endsWith('.pkl')) {
+  const handleFiles = (files: FileList | File[]) => {
+    Array.from(files).forEach(file => {
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith('.pkl')) {
         setPklFile(file);
-      } else if (type === 'mp4' && file.type === 'video/mp4') {
+      } else if (fileName.endsWith('.mp4') || file.type.startsWith('video/')) {
         setMp4File(file);
       }
+    });
+  };
+
+  const onDrop = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
     }
   };
 
@@ -307,38 +313,36 @@ const FileUpload: React.FC<FileUploadProps> = ({
       </div>
 
       {activeTab === 'local' ? (
-        <div className={styles.uploadFields}>
-          {/* 本地上传逻辑支持拖拽 */}
-          <div className={styles.uploadField}>
-            <div 
-              className={`${styles.dropZone} ${pklFile ? styles.dropZoneSelected : ''} ${pklDragActive ? styles.dropZoneActive : ''}`} 
-              onClick={() => pklInputRef.current?.click()}
-              onDragEnter={(e) => handleDrag(e, 'pkl', true)}
-              onDragOver={(e) => handleDrag(e, 'pkl', true)}
-              onDragLeave={(e) => handleDrag(e, 'pkl', false)}
-              onDrop={(e) => handleDrop(e, 'pkl')}
-            >
-              <span className={styles.dropIcon}>📄</span>
-              <span className={styles.dropLabel}>PKL 文件</span>
-              <span className={styles.dropHint}>点击或拖拽上传</span>
-              {pklFile && <span className={styles.fileName}>{pklFile.name}</span>}
-              <input ref={pklInputRef} type="file" accept=".pkl" className={styles.hiddenInput} onChange={(e: ChangeEvent<HTMLInputElement>) => setPklFile(e.target.files?.[0] || null)} />
-            </div>
+        <div 
+          className={`${styles.unifiedDropZone} ${dragActive ? styles.dropZoneActive : ''} ${(pklFile && mp4File) ? styles.dropZoneSelected : ''}`}
+          onDragEnter={handleDrag}
+          onDragOver={handleDrag}
+          onDragLeave={handleDrag}
+          onDrop={onDrop}
+        >
+          <div className={styles.dropZoneMain}>
+            <span className={styles.dropIcon}>📂</span>
+            <span className={styles.dropLabel}>将项目文件拖拽至此</span>
+            <span className={styles.dropHint}>支持同时上传 .pkl 和 .mp4 文件，系统将自动匹配</span>
           </div>
-          <div className={styles.uploadField}>
-            <div 
-              className={`${styles.dropZone} ${mp4File ? styles.dropZoneSelected : ''} ${mp4DragActive ? styles.dropZoneActive : ''}`} 
-              onClick={() => mp4InputRef.current?.click()}
-              onDragEnter={(e) => handleDrag(e, 'mp4', true)}
-              onDragOver={(e) => handleDrag(e, 'mp4', true)}
-              onDragLeave={(e) => handleDrag(e, 'mp4', false)}
-              onDrop={(e) => handleDrop(e, 'mp4')}
-            >
-              <span className={styles.dropIcon}>🎬</span>
-              <span className={styles.dropLabel}>MP4 视频</span>
-              <span className={styles.dropHint}>点击或拖拽上传</span>
-              {mp4File && <span className={styles.fileName}>{mp4File.name}</span>}
-              <input ref={mp4InputRef} type="file" accept="video/mp4" className={styles.hiddenInput} onChange={(e: ChangeEvent<HTMLInputElement>) => setMp4File(e.target.files?.[0] || null)} />
+          
+          <div className={styles.fileList}>
+            <div className={`${styles.fileItem} ${pklFile ? styles.fileItemSelected : ''}`} onClick={() => pklInputRef.current?.click()}>
+              <span className={styles.fileIcon}>{pklFile ? '✅' : '📄'}</span>
+              <div className={styles.fileInfoText}>
+                <span className={styles.fileLabel}>PKL 文件</span>
+                <span className={styles.fileStatusText}>{pklFile ? pklFile.name : '等待上传...'}</span>
+              </div>
+              <input ref={pklInputRef} type="file" accept=".pkl" className={styles.hiddenInput} onChange={(e) => handleFiles(e.target.files!)} />
+            </div>
+            
+            <div className={`${styles.fileItem} ${mp4File ? styles.fileItemSelected : ''}`} onClick={() => mp4InputRef.current?.click()}>
+              <span className={styles.fileIcon}>{mp4File ? '✅' : '🎬'}</span>
+              <div className={styles.fileInfoText}>
+                <span className={styles.fileLabel}>MP4 视频</span>
+                <span className={styles.fileStatusText}>{mp4File ? mp4File.name : '等待上传...'}</span>
+              </div>
+              <input ref={mp4InputRef} type="file" accept="video/mp4" className={styles.hiddenInput} onChange={(e) => handleFiles(e.target.files!)} />
             </div>
           </div>
         </div>
