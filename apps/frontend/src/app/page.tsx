@@ -183,29 +183,47 @@ function HomePageContent() {
     }
   }, []);
   
-  /** 检查并处理 URL 参数中的自动加载请求 */
+  /** 检查并处理 URL 参数或 localStorage 中的加载请求 */
   useEffect(() => {
+    // 1. 优先检查 localStorage (支持评分数据透传)
+    const savedRequest = localStorage.getItem('mano_viewer_load_request');
+    if (savedRequest) {
+      try {
+        const data = JSON.parse(savedRequest);
+        localStorage.removeItem('mano_viewer_load_request'); // 阅后即焚，防止刷新重复加载
+        if (data.pkl && data.mp4) {
+          console.log('[HomePage] 从 localStorage 加载:', data.pkl);
+          handleServerFileSelected(data.pkl, data.mp4, data.scores);
+          return;
+        }
+      } catch (e) {
+        console.error('localStorage parse error', e);
+      }
+    }
+
+    // 2. 备选检查 URL 参数
     const pkl = searchParams.get('pkl');
     const mp4 = searchParams.get('mp4');
-    
     if (pkl && mp4 && loadingState === 'idle') {
-      console.log('[HomePage] 检测到 URL 参数，执行自动加载:', { pkl, mp4 });
+      console.log('[HomePage] 从 URL 参数加载:', { pkl, mp4 });
       handleServerFileSelected(pkl, mp4);
     }
   }, [searchParams, handleServerFileSelected, loadingState]);
 
-  /** 处理文件选择提交（打开新标签页） */
+  /** 处理文件选择提交（打开新标签页，并通过 localStorage 传参） */
   const handleOpenInNewTab = useCallback((pklPath: string, mp4Path: string, scores?: any) => {
-    const params = new URLSearchParams();
-    params.set('pkl', pklPath);
-    params.set('mp4', mp4Path);
-    // 注意：评分数据由于可能很大，暂时不通过 URL 传递，仅在当前页加载时可用
-    // 如果需要跨页传递，可以考虑在 handleServerFileSelected 中支持 scores
-    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    const loadRequest = {
+      pkl: pklPath,
+      mp4: mp4Path,
+      scores: scores
+    };
     
-    // 如果是当前页加载，直接调用 handleServerFileSelected
-    handleServerFileSelected(pklPath, mp4Path, scores);
-  }, [handleServerFileSelected]);
+    // 存储到 localStorage
+    localStorage.setItem('mano_viewer_load_request', JSON.stringify(loadRequest));
+    
+    // 打开新窗口 (当前页面路径)
+    window.open(window.location.origin + window.location.pathname, '_blank');
+  }, []);
 
   /** 重新选择文件 */
   const handleReset = useCallback(() => {
