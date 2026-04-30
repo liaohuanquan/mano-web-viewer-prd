@@ -49,17 +49,21 @@ export default function VideoOverlay({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastSyncedFrameRef = useRef<number>(-1);
 
   /** 同步视频到指定帧 */
   const seekToFrame = useCallback((frame: number) => {
     const video = videoRef.current;
-    if (!video || !fps) return;
-    const targetTime = frame / fps;
+    if (!video || !fps || totalFrames <= 1 || !video.duration) return;
+    
+    // 使用时长比例对齐，解决视频与 PKL 长度微小差异（如 1-2 帧误差）导致的末尾偏移
+    const targetTime = (frame / (totalFrames - 1)) * video.duration;
+    
     // 允许微小误差，避免频繁 seek 导致卡顿
     if (Math.abs(video.currentTime - targetTime) > (1 / fps) / 2) {
       video.currentTime = targetTime;
     }
-  }, [fps]);
+  }, [fps, totalFrames]);
 
   /** 帧变化时同步视频。仅在暂停状态或手动拖动时进行 seek，播放时让视频自然流动 */
   useEffect(() => {
@@ -99,14 +103,16 @@ export default function VideoOverlay({
 
   /** 记录帧长度对比日志 */
   useEffect(() => {
+    const video = videoRef.current;
     if (tracks && tracks.length > 0) {
       const pklFrames = tracks[0].cam_trans?.length || 0;
-      console.log(`[VideoOverlay] 帧长度检测 - 视频总帧数: ${totalFrames}, PKL 轨迹帧数: ${pklFrames}`);
+      const videoDurationFrames = video?.duration ? Math.round(video.duration * fps) : '加载中...';
+      console.log(`[VideoOverlay] 帧长度检测 - 预期总帧数: ${totalFrames}, PKL 轨迹帧数: ${pklFrames}, 视频时长对应帧数: ${videoDurationFrames}`);
       if (Math.abs(totalFrames - pklFrames) > 1) {
-        console.warn(`[VideoOverlay] 帧数不一致警告：视频(${totalFrames}) 与 PKL(${pklFrames}) 长度不匹配，可能存在同步问题。`);
+        console.warn(`[VideoOverlay] 帧数不一致警告：视频(${totalFrames}) 与 PKL(${pklFrames}) 长度不匹配，已启用比例对齐逻辑。`);
       }
     }
-  }, [tracks, totalFrames]);
+  }, [tracks, totalFrames, fps]);
 
   /** 播放中由视频驱动全局帧同步 & Overlay 渲染循环 */
   useEffect(() => {
@@ -117,9 +123,16 @@ export default function VideoOverlay({
       const canvas = canvasRef.current;
 
       // 1. 同步时间到主循环
-      if (video && !video.paused && onSync && fps) {
-        const frame = Math.floor(video.currentTime * fps);
-        onSync(frame);
+      if (video && !video.paused && onSync && totalFrames > 0 && video.duration) {
+        // 使用更精确的映射公式，解决持续播放时的 1 帧滞后问题
+        const frame = Math.floor(video.currentTime * (totalFrames / video.duration));
+        const clampedFrame = Math.min(totalFrames - 1, Math.max(0, frame));
+        
+        // 仅在帧号真正变化时才同步，减少 React 渲染压力
+        if (clampedFrame !== lastSyncedFrameRef.current) {
+          onSync(clampedFrame);
+          lastSyncedFrameRef.current = clampedFrame;
+        }
       }
 
       // 2. 将 3D Mesh 投影绘制到 Canvas
