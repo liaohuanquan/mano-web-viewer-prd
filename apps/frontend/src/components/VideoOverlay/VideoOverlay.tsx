@@ -97,6 +97,17 @@ export default function VideoOverlay({
     }
   }, [intrinsics_pnp]);
 
+  /** 记录帧长度对比日志 */
+  useEffect(() => {
+    if (tracks && tracks.length > 0) {
+      const pklFrames = tracks[0].cam_trans?.length || 0;
+      console.log(`[VideoOverlay] 帧长度检测 - 视频总帧数: ${totalFrames}, PKL 轨迹帧数: ${pklFrames}`);
+      if (Math.abs(totalFrames - pklFrames) > 1) {
+        console.warn(`[VideoOverlay] 帧数不一致警告：视频(${totalFrames}) 与 PKL(${pklFrames}) 长度不匹配，可能存在同步问题。`);
+      }
+    }
+  }, [tracks, totalFrames]);
+
   /** 播放中由视频驱动全局帧同步 & Overlay 渲染循环 */
   useEffect(() => {
     let animationFrameId: number;
