@@ -1,0 +1,9 @@
+public/good_videos_part_001.csv
+synaego_temp/
+.env.test
+.env.prod
+node_modules/
+.next/
+dist/
+build/
+*.log
