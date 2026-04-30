@@ -9,6 +9,7 @@ import os
 import joblib
 import cv2
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from typing import Optional  # 兼容 Python 3.9
 from pydantic import BaseModel
 import numpy as np
 
@@ -265,10 +266,10 @@ async def search_projects_globally(query: str):
 class ParseServerPklRequest(BaseModel):
     pkl_path: str
     mp4_path: str
-    # 可选透传字段
-    per_frame_validity: list[float] | None = None
-    left_per_frame_validity: list[float] | None = None
-    right_per_frame_validity: list[float] | None = None
+    # 可选透传字段 - 必须使用 Optional 以兼容 Python 3.9
+    per_frame_validity: Optional[list[float]] = None
+    left_per_frame_validity: Optional[list[float]] = None
+    right_per_frame_validity: Optional[list[float]] = None
 
 @router.post("/parse-server-pkl")
 async def parse_server_pkl(req: ParseServerPklRequest):
