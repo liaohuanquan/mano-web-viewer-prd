@@ -87,6 +87,15 @@ export default function VideoOverlay({
     }
   }, [isPlaying, fps]); // eslint-disable-line react-hooks/exhaustive-deps
   // 注意：currentFrame 故意不放入依赖，防止播放中途被不断重置
+  
+  /** 记录相机内参的使用状态 */
+  useEffect(() => {
+    if (intrinsics_pnp && intrinsics_pnp.length === 4) {
+      console.log('[VideoOverlay] 使用传入的相机内参:', intrinsics_pnp);
+    } else {
+      console.log('[VideoOverlay] 未检测到有效相机内参，使用默认投影参数');
+    }
+  }, [intrinsics_pnp]);
 
   /** 播放中由视频驱动全局帧同步 & Overlay 渲染循环 */
   useEffect(() => {
@@ -120,11 +129,15 @@ export default function VideoOverlay({
             pnp_cy = 357.0;
           }
 
-          // 缩放至 canvas 尺寸（内参基于原始视频分辨率）
-          const origW = intrinsics_pnp ? pnp_cx * 2 : 1280.0;
-          const origH = intrinsics_pnp ? pnp_cy * 2 : 720.0;
+          // 缩放至 canvas 尺寸（优先使用视频实际分辨率）
+          const origW = video.videoWidth || (intrinsics_pnp ? pnp_cx * 2 : 1280.0);
+          const origH = video.videoHeight || (intrinsics_pnp ? pnp_cy * 2 : 720.0);
           const scaleX = canvas.width / origW;
           const scaleY = canvas.height / origH;
+          
+          if (video.videoWidth > 0 && (origW !== video.videoWidth)) {
+             console.log('[renderLoop] 尺寸检测:', { videoW: video.videoWidth, origW, scaleX });
+          }
           
           const fx = pnp_fx * scaleX;
           const fy = pnp_fy * scaleY;
