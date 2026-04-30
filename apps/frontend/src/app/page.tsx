@@ -217,7 +217,7 @@ function HomePageContent() {
     if (pkl && mp4 && loadingState === 'idle') {
       console.log('[HomePage] 从 URL 参数加载:', { pkl, mp4, csv, idx });
       const rowIndex = idx ? parseInt(idx, 10) : undefined;
-      handleServerFileSelected(pkl, mp4, null, csv || undefined, isNaN(rowIndex!) ? undefined : rowIndex);
+      handleServerFileSelected(pkl, mp4, undefined, csv || undefined, isNaN(rowIndex!) ? undefined : rowIndex);
     }
   }, [searchParams, handleServerFileSelected, loadingState]);
 
