@@ -269,20 +269,20 @@ export default function Scene3D({
       <div className={styles.metricsPanel}>
         <div className={styles.metricsTitle}>测量数据</div>
         <div className={styles.metricsRow}>
-          <span className={styles.metricsLabel}>📷 左手-原点距离</span>
+          <span className={styles.metricsLabel}>左手-原点距离</span>
           <span className={styles.metricsValue}>{fmt(metrics.leftCamDist)} cm</span>
         </div>
         <div className={styles.metricsRow}>
-          <span className={styles.metricsLabel}>📷 右手-原点距离</span>
+          <span className={styles.metricsLabel}>右手-原点距离</span>
           <span className={styles.metricsValue}>{fmt(metrics.rightCamDist)} cm</span>
         </div>
         <div className={styles.metricsDivider} />
         <div className={styles.metricsRow}>
-          <span className={styles.metricsLabel}>🤚 左手背长</span>
+          <span className={styles.metricsLabel}>左手背长</span>
           <span className={styles.metricsValue}>{fmt(metrics.leftBackLen)} cm</span>
         </div>
         <div className={styles.metricsRow}>
-          <span className={styles.metricsLabel}>✋ 右手背长</span>
+          <span className={styles.metricsLabel}>右手背长</span>
           <span className={styles.metricsValue}>{fmt(metrics.rightBackLen)} cm</span>
         </div>
 
@@ -290,35 +290,26 @@ export default function Scene3D({
         {(metrics.validity !== null || metrics.leftValidity !== null || metrics.rightValidity !== null) && (
           <>
             <div className={styles.metricsDivider} />
-            <div className={styles.metricsTitle}>评分分析 (Quality)</div>
+            <div className={styles.metricsTitle}>评分数据</div>
             
             {metrics.validity !== null && (
               <div className={styles.metricsRow}>
-                <span className={styles.metricsLabel}>✨ 整体评分</span>
-                <div className={styles.validityContainer}>
-                  <div className={styles.validityBar} style={{ width: `${metrics.validity * 100}%`, backgroundColor: metrics.validity > 0.8 ? '#4cc9f0' : metrics.validity > 0.5 ? '#f7b731' : '#ff4d4d' }} />
-                  <span className={styles.metricsValue}>{(metrics.validity * 100).toFixed(0)}%</span>
-                </div>
+                <span className={styles.metricsLabel}>整体评分</span>
+                <span className={styles.metricsValue}>{metrics.validity.toFixed(2)}</span>
               </div>
             )}
             
             {metrics.leftValidity !== null && (
               <div className={styles.metricsRow}>
-                <span className={styles.metricsLabel}>⬅️ 左手评分</span>
-                <div className={styles.validityContainer}>
-                  <div className={styles.validityBar} style={{ width: `${metrics.leftValidity * 100}%`, backgroundColor: '#00CED1' }} />
-                  <span className={styles.metricsValue}>{(metrics.leftValidity * 100).toFixed(0)}%</span>
-                </div>
+                <span className={styles.metricsLabel}>左手评分</span>
+                <span className={styles.metricsValue}>{metrics.leftValidity.toFixed(2)}</span>
               </div>
             )}
             
             {metrics.rightValidity !== null && (
               <div className={styles.metricsRow}>
-                <span className={styles.metricsLabel}>➡️ 右手评分</span>
-                <div className={styles.validityContainer}>
-                  <div className={styles.validityBar} style={{ width: `${metrics.rightValidity * 100}%`, backgroundColor: '#FF6B6B' }} />
-                  <span className={styles.metricsValue}>{(metrics.rightValidity * 100).toFixed(0)}%</span>
-                </div>
+                <span className={styles.metricsLabel}>右手评分</span>
+                <span className={styles.metricsValue}>{metrics.rightValidity.toFixed(2)}</span>
               </div>
             )}
           </>
