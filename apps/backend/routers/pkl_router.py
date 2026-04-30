@@ -201,6 +201,7 @@ async def parse_csv(csv_path: str):
                 if pkl and mp4:
                     records.append({
                         "id": f"{csv_path}#{i}",
+                        "row_index": i,
                         "name": row.get('seq_name') or f"Record {i+1}",
                         "pkl_path": pkl,
                         "mp4_path": mp4,
@@ -266,6 +267,8 @@ async def search_projects_globally(query: str):
 class ParseServerPklRequest(BaseModel):
     pkl_path: str
     mp4_path: str
+    csv_path: Optional[str] = None
+    row_index: Optional[int] = None
     # 可选透传字段 - 必须使用 Optional 以兼容 Python 3.9
     per_frame_validity: Optional[list[float]] = None
     left_per_frame_validity: Optional[list[float]] = None
@@ -286,6 +289,55 @@ async def parse_server_pkl(req: ParseServerPklRequest):
         raise HTTPException(status_code=404, detail="PKL file not found")
     if not os.path.exists(full_mp4_path):
         raise HTTPException(status_code=404, detail="MP4 file not found")
+
+    # 如果没有传评分，但传了 csv_path，尝试从 csv 中查找评分 (用于跨机器分享链接)
+    per_frame_validity = req.per_frame_validity
+    left_per_frame_validity = req.left_per_frame_validity
+    right_per_frame_validity = req.right_per_frame_validity
+
+    if per_frame_validity is None and req.csv_path:
+        full_csv_path = os.path.join(OUTPUTS_DIR, req.csv_path.lstrip('/'))
+        if os.path.exists(full_csv_path):
+            try:
+                import csv
+                with open(full_csv_path, mode='r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    # 如果有 row_index，尝试直接定位
+                    if req.row_index is not None:
+                        import itertools
+                        # 跳过前 req.row_index 行
+                        target_row = next(itertools.islice(reader, req.row_index, req.row_index + 1), None)
+                        if target_row and target_row.get('pkl_path') == req.pkl_path:
+                            def _parse(s):
+                                if not s: return None
+                                try:
+                                    clean_s = str(s).strip('"').strip()
+                                    if not clean_s: return None
+                                    return np.fromstring(clean_s, sep=',').tolist()
+                                except: return None
+                            per_frame_validity = _parse(target_row.get('per_frame_validity'))
+                            left_per_frame_validity = _parse(target_row.get('left_per_frame_validity'))
+                            right_per_frame_validity = _parse(target_row.get('right_per_frame_validity'))
+                    
+                    # 如果索引没匹配上，回退到全局搜索
+                    if per_frame_validity is None:
+                        f.seek(0)
+                        reader = csv.DictReader(f)
+                        for row in reader:
+                            if row.get('pkl_path') == req.pkl_path:
+                                def _parse(s):
+                                    if not s: return None
+                                    try:
+                                        clean_s = str(s).strip('"').strip()
+                                        if not clean_s: return None
+                                        return np.fromstring(clean_s, sep=',').tolist()
+                                    except: return None
+                                per_frame_validity = _parse(row.get('per_frame_validity'))
+                                left_per_frame_validity = _parse(row.get('left_per_frame_validity'))
+                                right_per_frame_validity = _parse(row.get('right_per_frame_validity'))
+                                break
+            except Exception as e:
+                print(f"[parse_server_pkl] Error searching CSV: {e}")
 
     try:
         data = joblib.load(full_pkl_path)
@@ -316,8 +368,8 @@ async def parse_server_pkl(req: ParseServerPklRequest):
         "intrinsics_pnp": result.get("intrinsics_pnp"),
         "file_info": result.get("file_info"),
         "relative_mp4_path": rel_mp4,
-        # 透传评分数据
-        "per_frame_validity": req.per_frame_validity,
-        "left_per_frame_validity": req.left_per_frame_validity,
-        "right_per_frame_validity": req.right_per_frame_validity
+        # 返回评分数据 (可能是透传的，也可能是从 CSV 查到的)
+        "per_frame_validity": per_frame_validity,
+        "left_per_frame_validity": left_per_frame_validity,
+        "right_per_frame_validity": right_per_frame_validity
     }

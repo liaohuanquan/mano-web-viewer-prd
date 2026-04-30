@@ -117,11 +117,17 @@ function HomePageContent() {
   }, [videoUrl]);
 
   /** 处理服务器文件选择提交 */
-  const handleServerFileSelected = useCallback(async (pklPath: string, mp4Path: string, scores?: {
-    per_frame_validity?: number[];
-    left_per_frame_validity?: number[];
-    right_per_frame_validity?: number[];
-  }) => {
+  const handleServerFileSelected = useCallback(async (
+    pklPath: string, 
+    mp4Path: string, 
+    scores?: {
+      per_frame_validity?: number[];
+      left_per_frame_validity?: number[];
+      right_per_frame_validity?: number[];
+    }, 
+    csvPath?: string, 
+    rowIndex?: number
+  ) => {
     console.log('[handleServerFileSelected] 开始处理服务器文件:', pklPath, mp4Path);
     setError(null);
     setLoadingState('parsing');
@@ -144,6 +150,8 @@ function HomePageContent() {
         body: JSON.stringify({ 
           pkl_path: pklPath,
           mp4_path: mp4Path,
+          csv_path: csvPath,
+          row_index: rowIndex,
           ...scores
         }),
       });
@@ -193,7 +201,7 @@ function HomePageContent() {
         localStorage.removeItem('mano_viewer_load_request'); // 阅后即焚，防止刷新重复加载
         if (data.pkl && data.mp4) {
           console.log('[HomePage] 从 localStorage 加载:', data.pkl);
-          handleServerFileSelected(data.pkl, data.mp4, data.scores);
+          handleServerFileSelected(data.pkl, data.mp4, data.scores, data.csv, data.idx);
           return;
         }
       } catch (e) {
@@ -204,18 +212,23 @@ function HomePageContent() {
     // 2. 备选检查 URL 参数
     const pkl = searchParams.get('pkl');
     const mp4 = searchParams.get('mp4');
+    const csv = searchParams.get('csv');
+    const idx = searchParams.get('idx');
     if (pkl && mp4 && loadingState === 'idle') {
-      console.log('[HomePage] 从 URL 参数加载:', { pkl, mp4 });
-      handleServerFileSelected(pkl, mp4);
+      console.log('[HomePage] 从 URL 参数加载:', { pkl, mp4, csv, idx });
+      const rowIndex = idx ? parseInt(idx, 10) : undefined;
+      handleServerFileSelected(pkl, mp4, null, csv || undefined, isNaN(rowIndex!) ? undefined : rowIndex);
     }
   }, [searchParams, handleServerFileSelected, loadingState]);
 
   /** 处理文件选择提交（打开新标签页，并通过 localStorage 和 URL 传参） */
-  const handleOpenInNewTab = useCallback((pklPath: string, mp4Path: string, scores?: any) => {
+  const handleOpenInNewTab = useCallback((pklPath: string, mp4Path: string, scores?: any, csvPath?: string, rowIndex?: number) => {
     const loadRequest = {
       pkl: pklPath,
       mp4: mp4Path,
-      scores: scores
+      scores: scores,
+      csv: csvPath,
+      idx: rowIndex
     };
     
     // 1. 存储到 localStorage (用于本浏览器新标签页快速读取完整评分数据)
@@ -225,6 +238,8 @@ function HomePageContent() {
     const params = new URLSearchParams();
     params.set('pkl', pklPath);
     params.set('mp4', mp4Path);
+    if (csvPath) params.set('csv', csvPath);
+    if (rowIndex !== undefined) params.set('idx', rowIndex.toString());
     const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
     
     // 打开带路径参数的新窗口

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, ChangeEvent, DragEvent } from 'react';
+import React, { useState, useRef, useEffect, useCallback, DragEvent } from 'react';
 import styles from './FileUpload.module.css';
 
 interface FileNode {
@@ -9,6 +9,7 @@ interface FileNode {
   pkl_path?: string;
   mp4_path?: string;
   csv_path?: string;
+  row_index?: number;
   isLoaded?: boolean;
   // 评分数据
   per_frame_validity?: number[];
@@ -21,6 +22,7 @@ interface CsvRecord {
   name: string;
   pkl_path: string;
   mp4_path: string;
+  row_index: number;
   frame_count: string;
   track_count: string;
   per_frame_validity?: number[];
@@ -34,7 +36,7 @@ interface FileUploadProps {
     per_frame_validity?: number[];
     left_per_frame_validity?: number[];
     right_per_frame_validity?: number[];
-  }) => void;
+  }, csvPath?: string, rowIndex?: number) => void;
   isLoading?: boolean;
 }
 
@@ -114,7 +116,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     }
   }, [debouncedQuery, activeTab]);
 
-  const fetchLevel = async (path: string, query: string = "") => {
+  const fetchLevel = useCallback(async (path: string, query: string = "") => {
     // 取消上一个请求
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -141,7 +143,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
       
-      const data = await response.json();
+      const data: { projects?: FileNode[] } = await response.json();
       
       // 只要请求没被取消，且 query 匹配，就更新
       if (query === debouncedQuery) {
@@ -163,7 +165,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       console.log(`[FileUpload] ✅ 状态重置`);
       setIsFetchingProjects(false);
     }
-  };
+  }, [apiUrl, debouncedQuery]);
 
   const updateChildrenInTree = (nodes: FileNode[], targetId: string, children: FileNode[]): FileNode[] => {
     return nodes.map((node: FileNode) => {
@@ -262,7 +264,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         per_frame_validity: selectedFile.per_frame_validity,
         left_per_frame_validity: selectedFile.left_per_frame_validity,
         right_per_frame_validity: selectedFile.right_per_frame_validity
-      });
+      }, selectedFile.csv_path, selectedFile.row_index);
     }
   };
 
@@ -422,6 +424,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
                             type: 'file',
                             pkl_path: record.pkl_path,
                             mp4_path: record.mp4_path,
+                            csv_path: selectedCsv?.csv_path,
+                            row_index: record.row_index,
                             per_frame_validity: record.per_frame_validity,
                             left_per_frame_validity: record.left_per_frame_validity,
                             right_per_frame_validity: record.right_per_frame_validity
