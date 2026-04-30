@@ -45,7 +45,7 @@ export default function PlayerControls({
     const rect = progressRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const ratio = Math.max(0, Math.min(1, x / rect.width));
-    const frame = ratio * (totalFrames - 1);
+    const frame = Math.round(ratio * (totalFrames - 1));
     console.log('[handleProgressClick] 跳转到帧:', frame);
     onSeek(frame);
   }, [totalFrames, onSeek]);
@@ -59,7 +59,8 @@ export default function PlayerControls({
       const rect = progressRef.current.getBoundingClientRect();
       const x = moveEvent.clientX - rect.left;
       const ratio = Math.max(0, Math.min(1, x / rect.width));
-      const frame = ratio * (totalFrames - 1);
+      const frame = Math.round(ratio * (totalFrames - 1));
+      console.log('[PlayerControls] 拖拽跳转到帧:', frame);
       onSeek(frame);
     };
 
@@ -78,7 +79,10 @@ export default function PlayerControls({
       <div className={styles.btnGroup}>
         <button
           className={styles.controlBtn}
-          onClick={onPrevFrame}
+          onClick={() => {
+            console.log('[PlayerControls] 点击上一帧');
+            onPrevFrame();
+          }}
           title="上一帧"
         >
           ⏮
@@ -94,7 +98,10 @@ export default function PlayerControls({
 
         <button
           className={styles.controlBtn}
-          onClick={onNextFrame}
+          onClick={() => {
+            console.log('[PlayerControls] 点击下一帧');
+            onNextFrame();
+          }}
           title="下一帧"
         >
           ⏭

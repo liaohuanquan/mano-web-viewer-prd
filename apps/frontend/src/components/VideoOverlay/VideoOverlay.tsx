@@ -118,7 +118,7 @@ export default function VideoOverlay({
 
       // 1. 同步时间到主循环
       if (video && !video.paused && onSync && fps) {
-        const frame = video.currentTime * fps;
+        const frame = Math.floor(video.currentTime * fps);
         onSync(frame);
       }
 
